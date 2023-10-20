@@ -26,9 +26,6 @@ namespace luci_interpreter
 {
 namespace
 {
-const int kMaxNumberOfAxis = 5;
-const int kMaxNumberOfReducedAxis = 2;
-
 void ResolveAxis(const int *axis_data, int axis_count, luci_interpreter_pal::MeanParams *op_params)
 {
   int i = 0;
@@ -70,8 +67,6 @@ void execute_kernel_CircleMean(const circle::Operator *cur_op, BaseRuntimeGraph 
   const auto *options = cur_op->builtin_options_as_ReducerOptions();
 
   int num_axis = static_cast<int>(Tensor::num_elements(axis));
-  int temp_index[kMaxNumberOfAxis];
-  int resolved_axis[kMaxNumberOfReducedAxis];
 
   switch (Tensor::element_type(kernel.input1()))
   {
@@ -104,7 +99,7 @@ void execute_kernel_CircleMean(const circle::Operator *cur_op, BaseRuntimeGraph 
           kernels::getTensorData<float>(tiso_data.output_data),
           reinterpret_cast<const int *>(wrap(output->shape()).data()), Tensor::num_dims(output),
           kernels::getTensorData<int>(tiso_data.input2_data), num_axis, options->keep_dims(),
-          temp_index, resolved_axis, kernels::getTensorData<float>(tiso_data.output_data));
+          kernels::getTensorData<float>(tiso_data.output_data));
       }
     }
     break;

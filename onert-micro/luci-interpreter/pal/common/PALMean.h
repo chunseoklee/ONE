@@ -104,12 +104,18 @@ inline bool reduceSumImpl(const In *input_data, const int *input_dims, const int
 }
 } // namespace
 
+const int kMaxNumberOfAxis = 5;
+const int kMaxNumberOfReducedAxis = 2;
+
 template <typename T, typename U>
 inline bool Mean(const T *input_data, const int *input_dims, const int input_num_dims,
                  T *output_data, const int *output_dims, const int output_num_dims, const int *axis,
-                 const int num_axis_dimensions, bool, int *temp_index, int *resolved_axis,
+                 const int num_axis_dimensions, bool,
                  U *temp_sum)
 {
+  int temp_index[kMaxNumberOfAxis];
+  int resolved_axis[kMaxNumberOfReducedAxis];
+
   // Reset output data.
   size_t num_outputs = 1;
   for (int idx = 0; idx < output_num_dims; ++idx)
