@@ -109,8 +109,10 @@ void GraphLoader::checkInplaceOps(CircleReader *reader, RuntimeGraph *runtime_gr
           std::find_if(non_const_input_it, op_inputs->end(), [&reader](const auto input_idx) {
             if (input_idx == -1)
               return false;
-
-            return not Tensor::is_constant_tensor(reader, reader->tensors()[input_idx]);
+            auto tensor = reader->tensors()[input_idx];
+            if ( tensor == nullptr )
+              return false;
+            return not Tensor::is_constant_tensor(reader, tensor);
           });
 
         if (non_const_input_it == op_inputs->end())
