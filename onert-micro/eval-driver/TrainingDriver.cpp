@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <luci_interpreter/Interpreter.h>
-#include <luci_interpreter/TrainingOnertMicro.h>
-#include <luci_interpreter/TrainingSettings.h>
+#include <OMInterpreter.h>
+#include <TrainingOnertMicro.h>
+#include <TrainingSettings.h>
 
 #include <stdexcept>
 #include <cstdlib>
