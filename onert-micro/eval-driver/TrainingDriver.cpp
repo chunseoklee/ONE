@@ -179,9 +179,9 @@ int entry(int argc, char **argv)
     config.wof_ptr = nullptr;
 
   // Set user defined training settings
-  const uint32_t training_epochs = 50;
-  const float lambda = 0.001f;
-  const uint32_t BATCH_SIZE = 32;
+  const uint32_t training_epochs = 10;
+  const float lambda = 0.01f;
+  const uint32_t BATCH_SIZE = 16;
   const uint32_t INPUT_SIZE = 180;
   const uint32_t OUTPUT_SIZE = 4;
   const uint32_t num_train_layers = 0;
@@ -264,12 +264,11 @@ int entry(int argc, char **argv)
                                        cur_batch_size);
 
       // Save them into vectors
-      accuracy_v.push_back(accuracy);
       cross_entropy_v.push_back(cross_entropy_metric);
     }
     // Calculate and print average values
-    float sum_acc = std::accumulate(accuracy_v.begin(), accuracy_v.end(), 0.f);
     float sum_ent = std::accumulate(cross_entropy_v.begin(), cross_entropy_v.end(), 0.f);
+    float sum_acc = std::accumulate(cross_entropy_v.begin(), cross_entropy_v.end(), 0.f);
     std::cout << "Train Average ACCURACY = " << sum_acc / accuracy_v.size() << "\n";
     std::cout << "Train Average CROSS ENTROPY = " << sum_ent / cross_entropy_v.size() << "\n";
 
@@ -290,7 +289,7 @@ int entry(int argc, char **argv)
       readDataFromFile(input_target_test_data_path, reinterpret_cast<char *>(test_target),
                        sizeof(float) * OUTPUT_SIZE * cur_batch_size,
                        i * sizeof(MODEL_TYPE) * OUTPUT_SIZE);
-
+ 
       train_interpreter.setInput(reinterpret_cast<uint8_t *>(test_input), 0);
       train_interpreter.setTarget(reinterpret_cast<uint8_t *>(test_target), 0);
 
@@ -305,7 +304,6 @@ int entry(int argc, char **argv)
       train_interpreter.evaluateMetric(onert_micro::ACCURACY, reinterpret_cast<void *>(&accuracy),
                                        cur_batch_size);
 
-      accuracy_v.push_back(accuracy);
       cross_entropy_v.push_back(cross_entropy_metric);
     }
     // Calculate and print average values
