@@ -16,6 +16,10 @@
 
 #include "OMTrainingInterpreter.h"
 
+#ifndef DIS_STREAM
+#include <fstream>
+#endif // DIS_STREAM
+
 using namespace onert_micro;
 
 OMStatus OMTrainingInterpreter::importTrainModel(char *model_ptr, const OMConfig &config)
@@ -42,4 +46,30 @@ uint32_t OMTrainingInterpreter::getInputSizeAt(uint32_t position)
 uint32_t OMTrainingInterpreter::getOutputSizeAt(uint32_t position)
 {
   return _training_runtime_module.getOutputSizeAt(position);
+}
+
+OMStatus OMTrainingInterpreter::saveModel(const OMConfig &config, const char *save_path)
+{
+  if (save_path == nullptr or config.model_size == 0 or config.model_ptr == nullptr)
+    return UnknownError;
+
+#ifndef DIS_STREAM
+  // Open or create file
+  // Note: if the file existed, it will be overwritten
+  std::ofstream out_file(save_path, std::ios::binary | std::ios::trunc);
+  if (not out_file.is_open())
+    return UnknownError;
+
+  // Write data
+  out_file.write(config.model_ptr, config.model_size);
+
+  // Close file
+  out_file.close();
+#else
+  assert(fasle && "Not supported");
+  return UnknownError;
+#endif // DIS_STREAM
+
+  // Saving done
+  return Ok;
 }

@@ -18,6 +18,7 @@
 #define ONERT_MICRO_CONFIG_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 namespace onert_micro
 {
@@ -92,6 +93,8 @@ struct OMConfig
   // For case with divided weights and circle file
   char *wof_ptr = nullptr;
   bool train_mode = false;
+  char *model_ptr = nullptr;
+  size_t model_size = 0;
   OMTrainingContext training_context = {};
 };
 

@@ -73,8 +73,12 @@ public:
     return _training_runtime_module.evaluateMetric(metric, metric_val, test_size);
   }
 
+  // To get input and output flat size
   uint32_t getInputSizeAt(uint32_t position);
   uint32_t getOutputSizeAt(uint32_t position);
+
+  // Save current model
+  OMStatus saveModel(const OMConfig &config, const char *save_path);
 };
 
 } // namespace onert_micro
