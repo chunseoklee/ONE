@@ -72,6 +72,9 @@ public:
   {
     return _training_runtime_module.evaluateMetric(metric, metric_val, test_size);
   }
+
+  uint32_t getInputSizeAt(uint32_t position);
+  uint32_t getOutputSizeAt(uint32_t position);
 };
 
 } // namespace onert_micro

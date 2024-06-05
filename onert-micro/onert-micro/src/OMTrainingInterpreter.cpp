@@ -33,3 +33,13 @@ OMStatus OMTrainingInterpreter::trainSingleStep(const OMConfig &config)
 }
 
 OMStatus OMTrainingInterpreter::reset() { return _training_runtime_module.reset(); }
+
+uint32_t OMTrainingInterpreter::getInputSizeAt(uint32_t position)
+{
+  return _training_runtime_module.getInputSizeAt(position);
+}
+
+uint32_t OMTrainingInterpreter::getOutputSizeAt(uint32_t position)
+{
+  return _training_runtime_module.getOutputSizeAt(position);
+}

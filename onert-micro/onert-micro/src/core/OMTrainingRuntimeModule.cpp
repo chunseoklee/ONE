@@ -189,6 +189,11 @@ OMStatus OMTrainingRuntimeModule::evaluateMetric(OMMetrics metric, void *metric_
 {
   OMStatus status = Ok;
   OMRuntimeGraph &forward_main_graph = _graphs.at(0);
+
+  assert(test_size > 0);
+  if (test_size == 0)
+    return UnknownError;
+
   uint32_t input_nums = forward_main_graph.getNumberOfInputs();
   for (uint32_t b = 0; b < test_size; ++b)
   {

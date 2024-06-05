@@ -175,7 +175,7 @@ OMStatus OMTrainingHandler::updateOptimizerState(const OMConfig &config,
       if (adam_optimizer == nullptr)
         return UnknownError;
 
-      adam_optimizer->handle(config.training_context, backward_storage, context);
+      adam_optimizer->handle(backward_storage, context);
       break;
     }
     default:
