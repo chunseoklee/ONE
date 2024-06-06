@@ -33,6 +33,7 @@ enum OMStatus
   NoQuantization,
   UnsupportedDynamicShapeCase,
   FailReadWOFFile,
+  FailReadCheckpointFile,
 };
 
 } // namespace onert_micro

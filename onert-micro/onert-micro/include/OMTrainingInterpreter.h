@@ -79,6 +79,12 @@ public:
 
   // Save current model
   OMStatus saveModel(const OMConfig &config, const char *save_path);
+
+  // Save current status as checkpoint
+  OMStatus saveCheckpoint(const OMConfig &config, const char *save_path);
+
+  // Load current status from checkpoint and save it in current model and in current config
+  OMStatus loadCheckpoint(OMConfig &config, const char *load_path);
 };
 
 } // namespace onert_micro

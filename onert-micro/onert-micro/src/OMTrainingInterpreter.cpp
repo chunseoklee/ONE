@@ -73,3 +73,82 @@ OMStatus OMTrainingInterpreter::saveModel(const OMConfig &config, const char *sa
   // Saving done
   return Ok;
 }
+
+OMStatus OMTrainingInterpreter::loadCheckpoint(OMConfig &config, const char *load_path)
+{
+  // Not imported or path is empty
+  if (load_path == nullptr or config.model_ptr == nullptr or config.model_size == 0)
+    return UnknownError;
+
+  // Get DataBuffer (vector of chars) of checkpoints
+  std::vector<char> checkpoint_data;
+
+  // Read data
+#ifndef DIS_STREAM
+  std::ifstream file(load_path, std::ios::binary | std::ios::in);
+  if (!file.good())
+  {
+    assert(false && "Fail to open");
+    return UnknownError;
+  }
+
+  file.seekg(0, std::ios::end);
+  auto fileSize = file.tellg();
+  file.seekg(0, std::ios::beg);
+
+  // reserve capacity
+  checkpoint_data.resize(fileSize);
+
+  // read the data
+  file.read(checkpoint_data.data(), fileSize);
+  if (file.fail())
+  {
+    assert(false && "Fail to read");
+    return UnknownError;
+  }
+#else
+  assert(fasle && "Not supported");
+  return UnknownError;
+#endif // DIS_STREAM
+
+  // Load data
+  OMStatus status = _training_runtime_module.loadCheckpointData(config, checkpoint_data.data());
+
+  return status;
+}
+
+OMStatus OMTrainingInterpreter::saveCheckpoint(const OMConfig &config, const char *save_path)
+{
+  // Not imported or path is empty
+  if (save_path == nullptr or config.model_ptr == nullptr or config.model_size == 0)
+    return UnknownError;
+
+  // Get DataBuffer (vector of chars) of checkpoints
+  std::vector<char> checkpoint_data;
+
+  OMStatus status = _training_runtime_module.createCheckpointFile(config, checkpoint_data);
+
+  assert(status == Ok);
+  if (status != Ok)
+    return status;
+
+    // Save it into save_path
+#ifndef DIS_STREAM
+  // Open or create file
+  // Note: if the file existed, it will be overwritten
+  std::ofstream out_file(save_path, std::ios::binary | std::ios::trunc);
+  if (not out_file.is_open())
+    return UnknownError;
+
+  // Write data
+  out_file.write(checkpoint_data.data(), checkpoint_data.size());
+
+  // Close file
+  out_file.close();
+#else
+  assert(fasle && "Not supported");
+  return UnknownError;
+#endif // DIS_STREAM
+
+  return Ok;
+}

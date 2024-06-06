@@ -17,6 +17,8 @@
 #include "core/OMTrainingRuntimeModule.h"
 #include "import/OMExecutionPlanCreator.h"
 #include "train/OMBackpropExecute.h"
+#include "core/train/OMCheckpointSaver.h"
+#include "core/train/OMCheckpointLoader.h"
 
 using namespace onert_micro::core;
 using namespace onert_micro;
@@ -259,6 +261,43 @@ OMStatus OMTrainingRuntimeModule::reset()
   }
 
   _training_handler.reset();
+
+  return status;
+}
+
+/*
+ * Create and save checkpoint data into data_buffer vector
+ */
+OMStatus OMTrainingRuntimeModule::createCheckpointFile(const OMConfig &config,
+                                                       std::vector<char> &data_buffer)
+{
+  // Model wasn't imported
+  if (_backward_graphs.size() == 0 or _graphs.size() == 0)
+    return UnknownError;
+
+  OMRuntimeContext &context = _backward_graphs.at(0).getRuntimeContext();
+  train::OMTrainingStorage &train_storage = _training_handler.getTrainingStorage();
+
+  OMStatus status =
+    train::OMCheckpointSaver::createCheckpointData(context, train_storage, data_buffer, config);
+
+  return status;
+}
+
+/*
+ * Load checkpoint data and save in model data and config
+ */
+OMStatus OMTrainingRuntimeModule::loadCheckpointData(OMConfig &config, const char *data)
+{
+  // Model wasn't imported
+  if (_backward_graphs.size() == 0 or _graphs.size() == 0)
+    return UnknownError;
+
+  OMRuntimeContext &context = _backward_graphs.at(0).getRuntimeContext();
+  train::OMTrainingStorage &train_storage = _training_handler.getTrainingStorage();
+
+  OMStatus status =
+    train::OMCheckpointLoader::loadCheckpointData(context, train_storage, data, config);
 
   return status;
 }

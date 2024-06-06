@@ -82,6 +82,14 @@ public:
   {
     _training_handler.setTargetData(data, target_index);
   }
+
+  // Create and save checkpoint data into data_buffer vector
+  // To check checkpoint file format please see https://github.com/Samsung/ONE/discussions/13037
+  OMStatus createCheckpointFile(const OMConfig &config, std::vector<char> &data_buffer);
+
+  // Load checkpoints data and save it in model data and in config
+  // To check checkpoint file format please see https://github.com/Samsung/ONE/discussions/13037
+  OMStatus loadCheckpointData(OMConfig &config, const char *data);
 };
 
 } // namespace core
