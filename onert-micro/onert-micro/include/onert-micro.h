@@ -287,6 +287,35 @@ NNFW_STATUS nnfw_train_export_circle(nnfw_session *session, const char *path);
 NNFW_STATUS nnfw_train_export_checkpoint(nnfw_session *session, const char *path);
 NNFW_STATUS nnfw_train_import_checkpoint(nnfw_session *session, const char *path);
 
+/**
+ * @brief Set training input
+ * @note  This function should be called after {@link nnfw_train_prepare}
+ *
+ * @param[in] session     The session to be set training inputs and expected model outputs
+ * @param[in] index       The index of training input
+ * @param[in] input       The input buffers for training
+ * @param[in] input_info  The shape and type of input buffer
+ *                        If it is nullptr, it will not change shape and batch size
+ * @return  @c NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_train_set_input(nnfw_session *session, uint32_t index, const void *input,
+                                 const nnfw_tensorinfo *input_info);
+
+/**
+ * @brief Set training expected output
+ * @note  This function should be called after {@link nnfw_train_prepare}
+ *
+ * @param session       The session to be set training inputs and expected model outputs
+ * @param index         The index of training expected output
+ * @param expected      The expected buffers for training
+ * @param expected_info The shape and type of expected buffer
+ *                      If it is nullptr, it will not change shape and batch size
+ * @return  @c NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_train_set_expected(nnfw_session *session, uint32_t index, const void *expected,
+                                    const nnfw_tensorinfo *expected_info);
+
+
 
 
 #ifdef __cplusplus

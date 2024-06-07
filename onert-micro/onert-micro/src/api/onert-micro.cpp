@@ -9,6 +9,14 @@
 #include "OMTrainingInterpreter.h"
 #include "onert-micro.h"
 
+#define NNFW_RETURN_ERROR_IF_NULL(p)      \
+  do                                      \
+  {                                       \
+    if ((p) == NULL)                      \
+      return NNFW_STATUS_UNEXPECTED_NULL; \
+  } while (0)
+
+
 // helper for file processing
 using DataBuffer = std::vector<char>;
 
@@ -140,10 +148,8 @@ public:
   NNFW_STATUS train_prepare();
   NNFW_STATUS train_input_tensorinfo(uint32_t index, nnfw_tensorinfo *ti);
   NNFW_STATUS train_expected_tensorinfo(uint32_t index, nnfw_tensorinfo *ti);
-  NNFW_STATUS train_set_input(uint32_t index, const void *input,
-                              const nnfw_tensorinfo *input_tensorinfo);
-  NNFW_STATUS train_set_expected(uint32_t index, const void *expected,
-                                 const nnfw_tensorinfo *expected_tensorinfo);
+  NNFW_STATUS train_set_input(uint32_t index, void *input);
+  NNFW_STATUS train_set_expected(uint32_t index, void *expected);
   NNFW_STATUS train_set_output(uint32_t index, NNFW_TYPE type, void *buffer, size_t length);
   NNFW_STATUS train_run(bool update_weights);
   NNFW_STATUS train_get_loss(uint32_t index, float *loss);
@@ -260,6 +266,17 @@ NNFW_STATUS nnfw_session::train_import_checkpoint(const char *path)
   return NNFW_STATUS_NO_ERROR;
 }
 
+NNFW_STATUS nnfw_session::train_set_input(uint32_t index, void *input)
+{
+  _train_interpreter->setInput((uint8_t*)input, index);
+  return NNFW_STATUS_NO_ERROR;
+}
+
+NNFW_STATUS nnfw_session::train_set_expected(uint32_t index, void *expected)
+{
+  _train_interpreter->setInput((uint8_t*)expected, index);
+  return NNFW_STATUS_NO_ERROR;
+}
 
 // onert-micr.h implementation
 
@@ -296,4 +313,18 @@ NNFW_STATUS nnfw_train_export_checkpoint(nnfw_session *session, const char *path
 NNFW_STATUS nnfw_train_import_checkpoint(nnfw_session *session, const char *path)
 {
   return session->train_import_checkpoint(path);  
+}
+
+NNFW_STATUS nnfw_train_set_input(nnfw_session *session, uint32_t index, void *input,
+                                 const nnfw_tensorinfo *input_info)
+{
+  NNFW_RETURN_ERROR_IF_NULL(session);
+  return session->train_set_input(index, input);
+}
+
+NNFW_STATUS nnfw_train_set_expected(nnfw_session *session, uint32_t index, void *expected,
+                                    const nnfw_tensorinfo *expected_info)
+{
+  NNFW_RETURN_ERROR_IF_NULL(session);
+  return session->train_set_expected(index, expected);
 }
