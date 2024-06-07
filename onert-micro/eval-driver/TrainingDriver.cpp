@@ -216,9 +216,7 @@ int entry(int argc, char **argv)
   // Note: here test size used with BATCH_SIZE = 1
   float test_input[INPUT_SIZE];
   float test_target[OUTPUT_SIZE];
-  std::vector<float> accuracy_v;
   std::vector<float> cross_entropy_v;
-  float max_accuracy = std::numeric_limits<float>::min();
   float min_ent = std::numeric_limits<float>::max();
 
   for (uint32_t e = 0; e < training_epochs; ++e)
@@ -251,16 +249,11 @@ int entry(int argc, char **argv)
       // Train with current batch size
       train_interpreter.trainSingleStep(config);
 
-      float mse = 0.f;
-      float mae = 0.f;
       float cross_entropy_metric = 0.f;
-      float accuracy = 0.f;
 
       // Evaluate cross_entropy and accuracy metrics
       train_interpreter.evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS,
                                        reinterpret_cast<void *>(&cross_entropy_metric),
-                                       cur_batch_size);
-      train_interpreter.evaluateMetric(onert_micro::ACCURACY, reinterpret_cast<void *>(&accuracy),
                                        cur_batch_size);
 
       // Save them into vectors
@@ -268,15 +261,12 @@ int entry(int argc, char **argv)
     }
     // Calculate and print average values
     float sum_ent = std::accumulate(cross_entropy_v.begin(), cross_entropy_v.end(), 0.f);
-    float sum_acc = std::accumulate(cross_entropy_v.begin(), cross_entropy_v.end(), 0.f);
-    std::cout << "Train Average ACCURACY = " << sum_acc / accuracy_v.size() << "\n";
     std::cout << "Train Average CROSS ENTROPY = " << sum_ent / cross_entropy_v.size() << "\n";
 
     // Run test for current epoch
     std::cout << "Run test for epoch: " << e + 1 << "/" << training_epochs << "\n";
     num_steps = num_test_data_samples;
 
-    accuracy_v.clear();
     cross_entropy_v.clear();
 
     for (int i = 0; i < num_steps; ++i)
@@ -293,32 +283,25 @@ int entry(int argc, char **argv)
       train_interpreter.setInput(reinterpret_cast<uint8_t *>(test_input), 0);
       train_interpreter.setTarget(reinterpret_cast<uint8_t *>(test_target), 0);
 
-      float mse = 0.f;
-      float mae = 0.f;
       float cross_entropy_metric = 0.f;
-      float accuracy = 0.f;
 
       train_interpreter.evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS,
                                        reinterpret_cast<void *>(&cross_entropy_metric),
-                                       cur_batch_size);
-      train_interpreter.evaluateMetric(onert_micro::ACCURACY, reinterpret_cast<void *>(&accuracy),
                                        cur_batch_size);
 
       cross_entropy_v.push_back(cross_entropy_metric);
     }
     // Calculate and print average values
-    sum_acc = std::accumulate(accuracy_v.begin(), accuracy_v.end(), 0.f);
     sum_ent = std::accumulate(cross_entropy_v.begin(), cross_entropy_v.end(), 0.f);
-    std::cout << "Test Average ACCURACY = " << sum_acc / accuracy_v.size() << "\n";
     std::cout << "Test Average CROSS ENTROPY = " << sum_ent / cross_entropy_v.size() << "\n";
 
-    float acc = sum_acc / accuracy_v.size();
-    if (acc > max_accuracy)
+    float ent = sum_ent / cross_entropy_v.size();
+    if (ent < min_ent)
     {
       // Save best checkpoint
       train_interpreter.saveCheckpoint(config, checkpoints_path);
-      max_accuracy = acc;
-      std::cout << "Found new max Test ACCURACY = " << max_accuracy << " in epoch = " << e + 1
+      min_ent = ent;
+      std::cout << "Found new min Test loss = " << min_ent << " in epoch = " << e + 1
                 << " / " << training_epochs << "\n";
     }
   }
