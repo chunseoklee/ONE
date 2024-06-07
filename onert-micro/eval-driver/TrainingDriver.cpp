@@ -217,6 +217,7 @@ int entry(int argc, char **argv)
   std::vector<float> accuracy_v;
   std::vector<float> cross_entropy_v;
   float max_accuracy = std::numeric_limits<float>::min();
+  float min_ent = std::numeric_limits<float>::max();
 
   for (uint32_t e = 0; e < training_epochs; ++e)
   {
@@ -230,7 +231,7 @@ int entry(int argc, char **argv)
       cur_batch_size = std::max(1u, cur_batch_size);
 
       config.training_context.batch_size = cur_batch_size;
-      config.training_context.num_step = i + 1;
+      config.training_context.num_step++;
 
       // Read current input and target data
       readDataFromFile(input_input_train_data_path, reinterpret_cast<char *>(training_input),
