@@ -331,6 +331,14 @@ int entry(int argc, char **argv)
   // Save training best result
   train_interpreter.saveModel(config, output_trained_file_path);
 
+  // nnfw api case
+  nnfw_session* session;
+  nnfw_create_session(&session);
+  nnfw_load_model_from_file(session, circle_model_path);
+  nnfw_train_export_checkpoint(session, "apickpt.ckpt");
+  nnfw_train_import_checkpoint(session, "apickpt.ckpt");
+  nnfw_train_export_circle(session, "apiexport.circle");
+
   return EXIT_SUCCESS;
 }
 
