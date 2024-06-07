@@ -73,6 +73,14 @@ for(int epoch=0; epoch < NUM_EPOCHS; epoch++) {
 
 typedef struct nnfw_session nnfw_session;
 
+typedef enum
+{
+  /** A tensor of 32 bit floating point */
+  NNFW_TYPE_TENSOR_FLOAT32 = 0,
+  /** A tensor of 32 bit signed integer */
+  NNFW_TYPE_TENSOR_INT32 = 1,
+} NNFW_TYPE;
+
 /**
  * @brief Result values returned from a call to an API function
  */
@@ -98,6 +106,174 @@ typedef enum
 } NNFW_STATUS;
 
 /**
+ * @brief Data format of a tensor
+ */
+typedef enum
+{
+  /** Don't care layout */
+  NNFW_LAYOUT_NONE = 0,
+  /**
+   * Channel last layout
+   * If rank is 4, layout is NHWC
+   */
+  NNFW_LAYOUT_CHANNELS_LAST = 1,
+  /**
+   * Channel first layout
+   * If rank is 4, layout is NCHW
+   */
+  NNFW_LAYOUT_CHANNELS_FIRST = 2,
+} NNFW_LAYOUT;
+
+
+/**
+ * @brief Maximum rank expressible with nnfw
+ */
+#define NNFW_MAX_RANK (6)
+
+/**
+ * @brief tensor info describes the type and shape of tensors
+ *
+ * <p>This structure is used to describe input and output tensors.
+ * Application can get input and output tensor type and shape described in model by using
+ * {@link nnfw_input_tensorinfo} and {@link nnfw_output_tensorinfo}
+ *
+ * <p>Maximum rank is 6 (NNFW_MAX_RANK). And tensor's dimension value is filled in 'dims' field from
+ * index 0.
+ * For example, if tensor's rank is 4,
+ * application can get dimension value from dims[0], dims[1], dims[2], and dims[3]
+ */
+typedef struct nnfw_tensorinfo
+{
+  /** The data type */
+  NNFW_TYPE dtype;
+  /** The number of dimensions (rank) */
+  int32_t rank;
+  /**
+   * The dimension of tensor.
+   * Maximum rank is 6 (NNFW_MAX_RANK).
+   */
+  int32_t dims[NNFW_MAX_RANK];
+} nnfw_tensorinfo;
+
+
+//////////////////////////////////////////////
+// Essential APIs for training
+//////////////////////////////////////////////
+typedef enum
+{
+  NNFW_TRAIN_LOSS_UNDEFINED = 0,
+  NNFW_TRAIN_LOSS_MEAN_SQUARED_ERROR = 1,
+  NNFW_TRAIN_LOSS_CATEGORICAL_CROSSENTROPY = 2,
+} NNFW_TRAIN_LOSS;
+
+typedef enum
+{
+  /** Undefined */
+  NNFW_TRAIN_LOSS_REDUCTION_UNDEFINED = 0,
+  /** Scalar sum divided by number of elements in losses */
+  NNFW_TRAIN_LOSS_REDUCTION_SUM_OVER_BATCH_SIZE = 1,
+  /** Scalar sum of weighted losses */
+  NNFW_TRAIN_LOSS_REDUCTION_SUM = 2,
+} NNFW_TRAIN_LOSS_REDUCTION;
+
+typedef enum
+{
+  NNFW_TRAIN_OPTIMIZER_UNDEFINED = 0,
+  NNFW_TRAIN_OPTIMIZER_SGD = 1,
+  NNFW_TRAIN_OPTIMIZER_ADAM = 2,
+} NNFW_TRAIN_OPTIMIZER;
+
+typedef struct nnfw_loss_info
+{
+  NNFW_TRAIN_LOSS loss;
+  NNFW_TRAIN_LOSS_REDUCTION reduction_type;
+} nnfw_loss_info;
+
+/**
+ * @brief Training information to prepare training
+ * @todo  Add more training information
+ *        (e.g. optimizer, loss function, ...)
+ */
+typedef struct nnfw_train_info
+{
+  /** Learning rate */
+  float learning_rate = 0.001f;
+  /** Batch size */
+  uint32_t batch_size = 1;
+  /** loss info */
+  nnfw_loss_info loss_info{.loss = NNFW_TRAIN_LOSS_MEAN_SQUARED_ERROR,
+                           .reduction_type = NNFW_TRAIN_LOSS_REDUCTION_SUM_OVER_BATCH_SIZE};
+  /** optimizer type */
+  NNFW_TRAIN_OPTIMIZER opt = NNFW_TRAIN_OPTIMIZER_SGD;
+} nnfw_train_info;
+
+
+/**
+ * @brief Create a new session instance.
+ *
+ * <p>This only creates a session.
+ * Model is loaded after {@link nnfw_load_model_from_file} is invoked.
+ * And inference is performed after {@link nnfw_run} is invoked.
+ *
+ * <p>{@link nnfw_close_session} should be called once
+ * if session is no longer needed
+ *
+ * @param[out]  session The session to be created
+ * @return      NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_create_session(nnfw_session **session);
+
+/**
+ * @brief Close a session instance
+ *
+ * After called, access to closed session by application will be invalid
+ *
+ * @param[in] session The session to be closed
+ * @return    @c NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_close_session(nnfw_session *session);
+
+/**
+ * @brief     Load model from nnpackage file or directory
+ *
+ * The length of \p package_file_path must not exceed 1024 bytes including zero at the end.
+ *
+ * @param[in] session           nnfw_session loading the given nnpackage file/dir
+ * @param[in] package_file_path Path to the nnpackage file or unzipped directory to be loaded
+ *
+ * @return    @c NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_load_model_from_file(nnfw_session *session, const char *package_file_path);
+
+/**
+ * @brief Prepare session to be ready for training
+ * @note  The session will be entered into training mode
+ *
+ *        If training info is NOT set in session, this function returns @c NNFW_STATUS_ERROR .
+ *        You should set training info using {@link nnfw_train_set_traininfo}.
+ *
+ * @param[in] session The session to be prepared for training
+ *
+ * @return  @c NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_train_prepare(nnfw_session *session);
+
+/**
+ * @brief Train the model
+ * @note  This function should be called after {@link nnfw_train_set_input} and
+ *        {@link nnfw_train_set_expected} for each input and expected output
+ *
+ *        In order to use \p update_weights as false, it should be called after
+ *        {@link nnfw_train_set_output}.
+ *
+ * @param[in] session The session to be trained
+ * @param[in] update_weights If true, update weights of the model
+ *                           If false, do not update weights of the model (for validation)
+ * @return  @c NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_train(nnfw_session *session, bool update_weights);
+
+/**
  * @brief Export current training model into circle model 
  * @note  This function should be called on training mode
  *        This function should be called after {@link nnfw_train}
@@ -107,6 +283,9 @@ typedef enum
  * @return @c NNFW_STATUS_NO_ERROR if successful
  */
 NNFW_STATUS nnfw_train_export_circle(nnfw_session *session, const char *path);
+
+NNFW_STATUS nnfw_train_export_checkpoint(nnfw_session *session, const char *path);
+NNFW_STATUS nnfw_train_import_checkpoint(nnfw_session *session, const char *path);
 
 
 

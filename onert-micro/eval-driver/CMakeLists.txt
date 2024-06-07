@@ -23,6 +23,7 @@ set(READER_SUFFIX "_driver")
 
 target_include_directories(onert_micro_training_eval_driver PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/onert_micro/include")
 target_link_libraries(onert_micro_training_eval_driver PUBLIC onert_micro_training_interpreter)
+target_link_libraries(onert_micro_training_eval_driver PUBLIC onert_micro-dev)
 
 install(TARGETS onert_micro_training_eval_driver DESTINATION bin)
 

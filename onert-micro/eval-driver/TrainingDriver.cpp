@@ -23,6 +23,8 @@
 #include <iostream>
 #include <numeric>
 
+#include "onert-micro.h"
+
 #define MODEL_TYPE float
 
 namespace
