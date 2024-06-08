@@ -298,7 +298,7 @@ NNFW_STATUS nnfw_train_import_checkpoint(nnfw_session *session, const char *path
  *                        If it is nullptr, it will not change shape and batch size
  * @return  @c NNFW_STATUS_NO_ERROR if successful
  */
-NNFW_STATUS nnfw_train_set_input(nnfw_session *session, uint32_t index, const void *input,
+NNFW_STATUS nnfw_train_set_input(nnfw_session *session, uint32_t index, void *input,
                                  const nnfw_tensorinfo *input_info);
 
 /**
@@ -312,10 +312,19 @@ NNFW_STATUS nnfw_train_set_input(nnfw_session *session, uint32_t index, const vo
  *                      If it is nullptr, it will not change shape and batch size
  * @return  @c NNFW_STATUS_NO_ERROR if successful
  */
-NNFW_STATUS nnfw_train_set_expected(nnfw_session *session, uint32_t index, const void *expected,
+NNFW_STATUS nnfw_train_set_expected(nnfw_session *session, uint32_t index, void *expected,
                                     const nnfw_tensorinfo *expected_info);
 
-
+/**
+ * @brief Get loss value for expected output
+ * @note  This function should be called after {@link nnfw_train}
+ *
+ * @param[in]   session The session to get loss value
+ * @param[in]   index   The index of loss value [0, number of expected outputs)
+ * @param[out]  loss    The loss value
+ * @return  @c NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_train_get_loss(nnfw_session *session, uint32_t index, float *loss);
 
 
 #ifdef __cplusplus

@@ -190,7 +190,7 @@ nnfw_session::nnfw_session()
   _config.train_mode = true;
   {
     onert_micro::OMTrainingContext train_context;
-    train_context.batch_size = 1;
+    train_context.batch_size = 16;
     train_context.num_of_train_layers = num_train_layers;
     train_context.lambda = lambda;
     train_context.loss = loss;
@@ -266,15 +266,34 @@ NNFW_STATUS nnfw_session::train_import_checkpoint(const char *path)
   return NNFW_STATUS_NO_ERROR;
 }
 
+// TODO: onert's this function takes const type input
 NNFW_STATUS nnfw_session::train_set_input(uint32_t index, void *input)
 {
   _train_interpreter->setInput((uint8_t*)input, index);
   return NNFW_STATUS_NO_ERROR;
 }
 
+// TODO: onert's this function takes const type expected
 NNFW_STATUS nnfw_session::train_set_expected(uint32_t index, void *expected)
 {
-  _train_interpreter->setInput((uint8_t*)expected, index);
+  _train_interpreter->setTarget((uint8_t*)expected, index);
+  return NNFW_STATUS_NO_ERROR;
+}
+
+NNFW_STATUS nnfw_session::train_get_loss(uint32_t index, float* loss)
+{
+  onert_micro::OMMetrics m;
+  switch(_config.training_context.loss) {
+    case onert_micro::CROSS_ENTROPY:
+      m = onert_micro::CROSS_ENTROPY_METRICS;
+      break;
+    default:
+      m = onert_micro::CROSS_ENTROPY_METRICS;
+      break;
+  }
+
+  _train_interpreter->evaluateMetric(m, reinterpret_cast<void *>(loss),
+                                    _config.training_context.batch_size);
   return NNFW_STATUS_NO_ERROR;
 }
 
@@ -327,4 +346,10 @@ NNFW_STATUS nnfw_train_set_expected(nnfw_session *session, uint32_t index, void 
 {
   NNFW_RETURN_ERROR_IF_NULL(session);
   return session->train_set_expected(index, expected);
+}
+
+NNFW_STATUS nnfw_train_get_loss(nnfw_session *session, uint32_t index, float *loss)
+{
+  NNFW_RETURN_ERROR_IF_NULL(session);
+  return session->train_get_loss(index, loss);
 }

@@ -76,7 +76,7 @@ struct OMTrainingContext
   float beta = 0.9f;
   float beta_squares = 0.9f;
   float epsilon = 10e-8;
-  uint32_t num_step = batch_size;
+  uint32_t num_step = 1;
   uint32_t num_epoch = 0;
 };
 

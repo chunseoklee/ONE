@@ -207,8 +207,11 @@ int entry(int argc, char **argv)
   }
 
   // Create training interpreter and import models
-  onert_micro::OMTrainingInterpreter train_interpreter;
-  train_interpreter.importTrainModel(circle_model.data(), config);
+  //onert_micro::OMTrainingInterpreter train_interpreter;
+  //train_interpreter.importTrainModel(circle_model.data(), config);
+  nnfw_session* session;
+  nnfw_create_session(&session);
+  nnfw_load_model_from_file(session, circle_model_path);
 
   // Temporary buffer to read input data from file using BATCH_SIZE
   float training_input[BATCH_SIZE * INPUT_SIZE];
@@ -223,6 +226,7 @@ int entry(int argc, char **argv)
   {
     // Run train for current epoch
     std::cout << "Run training for epoch: " << e + 1 << "/" << training_epochs << "\n";
+    // TODO: how to update num_epoch w/o this line ?
     config.training_context.num_epoch = e + 1;
     uint32_t num_steps = num_train_data_samples / BATCH_SIZE;
     for (int i = 0; i < num_steps; ++i)
@@ -230,7 +234,7 @@ int entry(int argc, char **argv)
       uint32_t cur_batch_size = std::min(BATCH_SIZE, num_train_data_samples - BATCH_SIZE * i - 1);
       cur_batch_size = std::max(1u, cur_batch_size);
 
-      config.training_context.batch_size = cur_batch_size;
+      // TODO: how to update num_epoch w/o this line ?
       config.training_context.num_step++;
 
       // Read current input and target data
@@ -243,18 +247,25 @@ int entry(int argc, char **argv)
                        i * sizeof(MODEL_TYPE) * OUTPUT_SIZE * BATCH_SIZE);
 
       // Set input and target
-      train_interpreter.setInput(reinterpret_cast<uint8_t *>(training_input), 0);
-      train_interpreter.setTarget(reinterpret_cast<uint8_t *>(training_target), 0);
+      //train_interpreter.setInput(reinterpret_cast<uint8_t *>(training_input), 0);
+      //train_interpreter.setTarget(reinterpret_cast<uint8_t *>(training_target), 0);
+      nnfw_tensorinfo ti = { .dtype = NNFW_TYPE_TENSOR_FLOAT32,
+        .rank = 2,
+        .dims = {1,180}};
+      nnfw_train_set_input(session, 0, training_input, &ti);
+      nnfw_train_set_expected(session, 0, training_target, nullptr);
 
       // Train with current batch size
-      train_interpreter.trainSingleStep(config);
+      //train_interpreter.trainSingleStep(config);
+      nnfw_train(session, true);
 
       float cross_entropy_metric = 0.f;
 
       // Evaluate cross_entropy and accuracy metrics
-      train_interpreter.evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS,
-                                       reinterpret_cast<void *>(&cross_entropy_metric),
-                                       cur_batch_size);
+      // train_interpreter.evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS,
+      //                                  reinterpret_cast<void *>(&cross_entropy_metric),
+      //                                  cur_batch_size);
+      nnfw_train_get_loss(session, 0, &cross_entropy_metric);
 
       // Save them into vectors
       cross_entropy_v.push_back(cross_entropy_metric);
@@ -280,15 +291,14 @@ int entry(int argc, char **argv)
                        sizeof(float) * OUTPUT_SIZE * cur_batch_size,
                        i * sizeof(MODEL_TYPE) * OUTPUT_SIZE);
  
-      train_interpreter.setInput(reinterpret_cast<uint8_t *>(test_input), 0);
-      train_interpreter.setTarget(reinterpret_cast<uint8_t *>(test_target), 0);
+      nnfw_tensorinfo ti = { .dtype = NNFW_TYPE_TENSOR_FLOAT32,
+        .rank = 2,
+        .dims = {1,180}};
+      nnfw_train_set_input(session, 0, test_input, &ti);
+      nnfw_train_set_expected(session, 0, test_target, nullptr);
 
       float cross_entropy_metric = 0.f;
-
-      train_interpreter.evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS,
-                                       reinterpret_cast<void *>(&cross_entropy_metric),
-                                       cur_batch_size);
-
+      nnfw_train_get_loss(session, 0, &cross_entropy_metric);
       cross_entropy_v.push_back(cross_entropy_metric);
     }
     // Calculate and print average values
@@ -299,7 +309,8 @@ int entry(int argc, char **argv)
     if (ent < min_ent)
     {
       // Save best checkpoint
-      train_interpreter.saveCheckpoint(config, checkpoints_path);
+      //train_interpreter.saveCheckpoint(config, checkpoints_path);
+      nnfw_train_export_checkpoint(session, checkpoints_path);
       min_ent = ent;
       std::cout << "Found new min Test loss = " << min_ent << " in epoch = " << e + 1
                 << " / " << training_epochs << "\n";
@@ -307,18 +318,28 @@ int entry(int argc, char **argv)
   }
 
   // Load best model
-  train_interpreter.loadCheckpoint(config, checkpoints_path);
+  //train_interpreter.loadCheckpoint(config, checkpoints_path);
+  nnfw_train_import_checkpoint(session, checkpoints_path);
 
   // Save training best result
-  train_interpreter.saveModel(config, output_trained_file_path);
+  //train_interpreter.saveModel(config, output_trained_file_path);
+  nnfw_train_export_circle(session, output_trained_file_path);
 
   // nnfw api case
-  nnfw_session* session;
-  nnfw_create_session(&session);
-  nnfw_load_model_from_file(session, circle_model_path);
-  nnfw_train_export_checkpoint(session, "apickpt.ckpt");
-  nnfw_train_import_checkpoint(session, "apickpt.ckpt");
-  nnfw_train_export_circle(session, "apiexport.circle");
+  //nnfw_session* session;
+  //nnfw_create_session(&session);
+  //nnfw_load_model_from_file(session, circle_model_path);
+  // nnfw_tensorinfo ti = { .dtype = NNFW_TYPE_TENSOR_FLOAT32,
+  //                        .rank = 2,
+  //                        .dims = {1,180}};
+  // nnfw_train_set_input(session, 0, training_input, &ti);
+  // nnfw_train_set_expected(session, 0, training_target, nullptr);
+  // nnfw_train(session, true);
+  // float l;
+  // nnfw_train_get_loss(session, 0, &l);
+  // nnfw_train_export_checkpoint(session, "apickpt.ckpt");
+  // nnfw_train_import_checkpoint(session, "apickpt.ckpt");
+  // nnfw_train_export_circle(session, "apiexport.circle");
 
   return EXIT_SUCCESS;
 }
