@@ -166,6 +166,8 @@ private:
   uint32_t getInputSize();
   uint32_t getOutputSize();
   NNFW_STATUS loadTrainingInfo(char* buf_ptr);
+  NNFW_STATUS loadOptimizerInfo(const circle::ModelTraining *circle_model);
+  NNFW_STATUS loadLossInfo(const circle::ModelTraining *circle_model);
 
 private:
   
@@ -228,11 +230,60 @@ nnfw_session::~nnfw_session()
   delete _train_interpreter;
 }
 
+NNFW_STATUS nnfw_session::loadOptimizerInfo(const circle::ModelTraining *circle_model)
+{
+  assert(circle_model != nullptr);
+
+  const circle::Optimizer circle_opt = circle_model->optimizer();
+
+  switch (circle_opt)
+  {
+    case circle::Optimizer_SGD:
+      _config.training_context.optimizer = onert_micro::SGD;
+      _config.training_context.lambda = circle_model->optimizer_opt_as_SGDOptions()->learning_rate();
+      break;
+    case circle::Optimizer_ADAM:
+      _config.training_context.optimizer = onert_micro::ADAM;
+      _config.training_context.lambda = circle_model->optimizer_opt_as_AdamOptions()->learning_rate();
+      _config.training_context.beta = circle_model->optimizer_opt_as_AdamOptions()->beta_1();
+      _config.training_context.beta_squares = circle_model->optimizer_opt_as_AdamOptions()->beta_2();
+      _config.training_context.epsilon = circle_model->optimizer_opt_as_AdamOptions()->epsilon();
+      break;
+    default:
+      throw std::runtime_error("unknown optimzer");
+  }
+  return NNFW_STATUS_NO_ERROR;
+}
+
+NNFW_STATUS nnfw_session::loadLossInfo(const circle::ModelTraining *circle_model)
+{
+  assert(circle_model != nullptr);
+
+  const circle::LossFn circle_loss = circle_model->lossfn();
+  
+  switch (circle_loss)
+  {
+    case circle::LossFn::LossFn_CATEGORICAL_CROSSENTROPY:
+      _config.training_context.loss = onert_micro::CROSS_ENTROPY;
+      break;
+    case circle::LossFn::LossFn_MEAN_SQUARED_ERROR:
+      _config.training_context.loss = onert_micro::MSE;
+      break;
+    case circle::LossFn::LossFn_SPARSE_CATEGORICAL_CROSSENTROPY:
+      // TODO enable this conversion after core support sparse_categorial_crossentropy
+      throw std::runtime_error{"'sparse_categorical_crossentropy' is not supported yet"};
+    default:
+      throw std::runtime_error{"unknown loss function"};
+  }
+  return NNFW_STATUS_NO_ERROR;
+}
+
 NNFW_STATUS nnfw_session::loadTrainingInfo(char* buf)
 {
   auto model = circle::GetModel(buf);
   // Load Metadata
   auto const metadata_list = model->metadata();
+  const uint8_t * data;
   if (metadata_list != nullptr)
   {
     for (uint32_t i = 0; i < metadata_list->size(); ++i)
@@ -240,10 +291,14 @@ NNFW_STATUS nnfw_session::loadTrainingInfo(char* buf)
       const auto metadata = metadata_list->Get(i);
       if (strcmp(metadata->name()->c_str(),"CIRCLE_TRAINING") != 0)
         continue;
-      const auto *data = model->buffers()->Get(metadata->buffer())->data();
+      data = (model->buffers()->Get(metadata->buffer()))->data()->data();
     }
   }
-
+  const circle::ModelTraining *traininfo_model =
+    circle::GetModelTraining(static_cast<const void *>(data));
+  _config.training_context.batch_size = traininfo_model->batch_size();
+  loadOptimizerInfo(traininfo_model);
+  return NNFW_STATUS_NO_ERROR;
 }
 
 NNFW_STATUS nnfw_session::load_model_from_file(const char *file_path)
