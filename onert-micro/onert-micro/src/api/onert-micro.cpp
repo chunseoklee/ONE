@@ -198,6 +198,7 @@ nnfw_session::nnfw_session()
     train_context.beta = beta;
     train_context.beta_squares = beta_squares;
     train_context.epsilon = epsilon;
+    train_context.num_step = 1;
 
     _config.training_context = train_context;
   }
@@ -245,6 +246,9 @@ NNFW_STATUS nnfw_session::train_run(bool update_weights)
 {
   // TOOD: micro support update_weights ???
   _train_interpreter->trainSingleStep(_config);
+  _config.training_context.num_epoch = _config.training_context.num_step / _config.training_context.batch_size + 1;
+  _config.training_context.num_step++;
+  
   return NNFW_STATUS_NO_ERROR;
 }
 

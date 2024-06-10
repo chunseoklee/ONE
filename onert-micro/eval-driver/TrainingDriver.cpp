@@ -226,8 +226,7 @@ int entry(int argc, char **argv)
   {
     // Run train for current epoch
     std::cout << "Run training for epoch: " << e + 1 << "/" << training_epochs << "\n";
-    // TODO: how to update num_epoch w/o this line ?
-    config.training_context.num_epoch = e + 1;
+    
     uint32_t num_steps = num_train_data_samples / BATCH_SIZE;
     for (int i = 0; i < num_steps; ++i)
     {
