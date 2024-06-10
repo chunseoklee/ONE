@@ -208,21 +208,6 @@ typedef struct nnfw_train_info
 } nnfw_train_info;
 
 /**
- * @brief Get training information
- * @note  This function should be called after calling {@link nnfw_load_model_from_file}
- *
- *        For the field which is not set in training information, it returns training information
- *        filled with default value. The default value of each field is as follows :
- *        learning_rate = 0.0f, batch_size = 0, *_UNDEF for other enums
- *
- * @param[in]   session   The session to get training information
- * @param[out]  info      Training information
- *
- * @return @c NNFW_STATUS_NO_ERROR if successful
- */
-NNFW_STATUS nnfw_train_get_traininfo(nnfw_session *session, nnfw_train_info *info);
-
-/**
  * @brief Set training information
  * @note  This function should be called after calling {@link nnfw_load_model_from_file}
  *        and before calling {@link nnfw_train_prepare}

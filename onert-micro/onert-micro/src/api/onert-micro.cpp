@@ -8,6 +8,8 @@
 
 #include "OMTrainingInterpreter.h"
 #include "onert-micro.h"
+#include <circle-generated/circle/schema_generated.h>
+#include <circle-generated/circle/traininfo_generated.h>
 
 #define NNFW_RETURN_ERROR_IF_NULL(p)      \
   do                                      \
@@ -163,6 +165,7 @@ public:
 private:
   uint32_t getInputSize();
   uint32_t getOutputSize();
+  NNFW_STATUS loadTrainingInfo(char* buf_ptr);
 
 private:
   
@@ -225,11 +228,31 @@ nnfw_session::~nnfw_session()
   delete _train_interpreter;
 }
 
+NNFW_STATUS nnfw_session::loadTrainingInfo(char* buf)
+{
+  auto model = circle::GetModel(buf);
+  // Load Metadata
+  auto const metadata_list = model->metadata();
+  if (metadata_list != nullptr)
+  {
+    for (uint32_t i = 0; i < metadata_list->size(); ++i)
+    {
+      const auto metadata = metadata_list->Get(i);
+      if (strcmp(metadata->name()->c_str(),"CIRCLE_TRAINING") != 0)
+        continue;
+      const auto *data = model->buffers()->Get(metadata->buffer())->data();
+    }
+  }
+
+}
+
 NNFW_STATUS nnfw_session::load_model_from_file(const char *file_path)
 {
   _model_buf = readFile(file_path);
   _config.model_ptr = _model_buf.data();
   _config.model_size = _model_buf.size();
+  // load training info
+  loadTrainingInfo(_config.model_ptr);
   // TODO: this import should start on nnfw_prepare if inference_interpreter is introduced
   _train_interpreter->importTrainModel(_config.model_ptr, _config);
   return NNFW_STATUS_NO_ERROR;
@@ -283,6 +306,15 @@ NNFW_STATUS nnfw_session::train_set_expected(uint32_t index, void *expected)
   _train_interpreter->setTarget((uint8_t*)expected, index);
   return NNFW_STATUS_NO_ERROR;
 }
+
+NNFW_STATUS nnfw_session::train_set_traininfo(const nnfw_train_info *info)
+{
+  _config.training_context.lambda = info->learning_rate;
+  _config.training_context.batch_size = info->batch_size;
+  
+  return NNFW_STATUS_NO_ERROR;
+}
+
 
 NNFW_STATUS nnfw_session::train_get_loss(uint32_t index, float* loss)
 {
@@ -356,4 +388,10 @@ NNFW_STATUS nnfw_train_get_loss(nnfw_session *session, uint32_t index, float *lo
 {
   NNFW_RETURN_ERROR_IF_NULL(session);
   return session->train_get_loss(index, loss);
+}
+
+NNFW_STATUS nnfw_train_set_traininfo(nnfw_session *session, const nnfw_train_info *info)
+{
+  NNFW_RETURN_ERROR_IF_NULL(session);
+  return session->train_set_traininfo(info);
 }
