@@ -212,7 +212,7 @@ int entry(int argc, char **argv)
   nnfw_session* session;
   nnfw_create_session(&session);
   nnfw_load_model_from_file(session, circle_model_path);
-
+  nnfw_train_prepare(session);
   // Temporary buffer to read input data from file using BATCH_SIZE
   float training_input[BATCH_SIZE * INPUT_SIZE];
   float training_target[BATCH_SIZE * OUTPUT_SIZE];
