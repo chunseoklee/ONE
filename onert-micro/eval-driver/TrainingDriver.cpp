@@ -181,7 +181,7 @@ int entry(int argc, char **argv)
   // Set user defined training settings
   const uint32_t training_epochs = 10;
   const float lambda = 0.01f;
-  const uint32_t BATCH_SIZE = 16;
+  const uint32_t BATCH_SIZE = 32;
   const uint32_t INPUT_SIZE = 180;
   const uint32_t OUTPUT_SIZE = 4;
   const uint32_t num_train_layers = 0;
