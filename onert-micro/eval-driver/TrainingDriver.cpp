@@ -230,7 +230,7 @@ int entry(int argc, char **argv)
     uint32_t num_steps = num_train_data_samples / BATCH_SIZE;
     for (int i = 0; i < num_steps; ++i)
     {
-      uint32_t cur_batch_size = std::min(BATCH_SIZE, num_train_data_samples - BATCH_SIZE * i - 1);
+      uint32_t cur_batch_size = std::min(BATCH_SIZE, num_train_data_samples - BATCH_SIZE * i );
       cur_batch_size = std::max(1u, cur_batch_size);
 
       // TODO: how to update num_epoch w/o this line ?
