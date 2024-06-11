@@ -325,8 +325,7 @@ NNFW_STATUS nnfw_session::train_run(bool update_weights)
   // TOOD: micro support update_weights ???
   _train_interpreter->trainSingleStep(_config);
   _config.training_context.num_epoch = _config.training_context.num_step / _config.training_context.batch_size + 1;
-  _config.training_context.num_step++;
-  
+
   return NNFW_STATUS_NO_ERROR;
 }
 

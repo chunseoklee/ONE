@@ -73,11 +73,11 @@ OMStatus OMTrainingRuntimeModule::importTrainModel(char *model_ptr, const OMConf
  *  -> run backward graph -> update optimizer state -> after batch_size steps update weights
  *  Warning: before using trainSingleStep call: 1) importTrainModel; 2) setInput; 3) setTarget
  */
-OMStatus OMTrainingRuntimeModule::trainSingleStep(const OMConfig &config)
+OMStatus OMTrainingRuntimeModule::trainSingleStep(OMConfig &config)
 {
   OMStatus status = Ok;
   uint32_t batch_size = config.training_context.batch_size;
-
+  config.training_context.num_step++;
   // A - Run and update optimizers state batch_size times
   //  a. Allocate forward inputs and memcopy current sample (in current batch) into forward inputs
   //  b. Run forward graph

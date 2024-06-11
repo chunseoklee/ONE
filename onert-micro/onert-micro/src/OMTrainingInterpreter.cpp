@@ -31,7 +31,7 @@ OMStatus OMTrainingInterpreter::importTrainModel(char *model_ptr, const OMConfig
   return _training_runtime_module.importTrainModel(model_ptr, config);
 }
 
-OMStatus OMTrainingInterpreter::trainSingleStep(const OMConfig &config)
+OMStatus OMTrainingInterpreter::trainSingleStep(OMConfig &config)
 {
   return _training_runtime_module.trainSingleStep(config);
 }

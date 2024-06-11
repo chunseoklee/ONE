@@ -55,7 +55,7 @@ public:
   // -> calculate error (with target data which was set in SetTarget) ->
   // -> run backward graph -> update optimizer state -> after batch_size steps update weights
   // Warning: before using trainSingleStep call: 1) importTrainModel; 2) setInput; 3) setTarget
-  OMStatus trainSingleStep(const OMConfig &config);
+  OMStatus trainSingleStep(OMConfig &config);
 
   // Reset all states and data saved into OMTrainingInterpreter (trained weights will not be reset)
   OMStatus reset();
