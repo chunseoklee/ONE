@@ -168,6 +168,7 @@ private:
   NNFW_STATUS loadTrainingInfo(char* buf_ptr);
   NNFW_STATUS loadOptimizerInfo(const circle::ModelTraining *circle_model);
   NNFW_STATUS loadLossInfo(const circle::ModelTraining *circle_model);
+  NNFW_STATUS loadTrainableOps(const circle::ModelTraining *circle_model, int num_ops);
 
 private:
   
@@ -278,9 +279,22 @@ NNFW_STATUS nnfw_session::loadLossInfo(const circle::ModelTraining *circle_model
   return NNFW_STATUS_NO_ERROR;
 }
 
+NNFW_STATUS nnfw_session::loadTrainableOps(const circle::ModelTraining *circle_model, int num_ops)
+{
+  assert(circle_model != nullptr);
+
+  auto ops_list = circle_model->trainable_ops();
+  if(ops_list != nullptr)
+    _config.training_context.num_of_train_layers = num_ops - ops_list->data()[0]; // simply assume ops[0] is the least node number
+  else 
+    _config.training_context.num_of_train_layers = num_ops;
+  return NNFW_STATUS_NO_ERROR;
+}
+
 NNFW_STATUS nnfw_session::loadTrainingInfo(char* buf)
 {
   auto model = circle::GetModel(buf);
+  auto num_ops = model->subgraphs()->Get(0)->operators()->size();
   // Load Metadata
   auto const metadata_list = model->metadata();
   const uint8_t * data;
@@ -299,6 +313,7 @@ NNFW_STATUS nnfw_session::loadTrainingInfo(char* buf)
   _config.training_context.batch_size = traininfo_model->batch_size();
   loadOptimizerInfo(traininfo_model);
   loadLossInfo(traininfo_model);
+  loadTrainableOps(traininfo_model, num_ops);
   return NNFW_STATUS_NO_ERROR;
 }
 
