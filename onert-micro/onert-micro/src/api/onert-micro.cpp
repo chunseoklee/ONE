@@ -298,6 +298,7 @@ NNFW_STATUS nnfw_session::loadTrainingInfo(char* buf)
     circle::GetModelTraining(static_cast<const void *>(data));
   _config.training_context.batch_size = traininfo_model->batch_size();
   loadOptimizerInfo(traininfo_model);
+  loadLossInfo(traininfo_model);
   return NNFW_STATUS_NO_ERROR;
 }
 
