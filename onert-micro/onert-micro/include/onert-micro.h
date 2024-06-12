@@ -189,6 +189,13 @@ typedef struct nnfw_loss_info
   NNFW_TRAIN_LOSS_REDUCTION reduction_type;
 } nnfw_loss_info;
 
+typedef struct nnfw_adam_option
+{
+  float beta;
+  float beta2;
+  float epsilon;
+} nnfw_adam_option;
+
 /**
  * @brief Training information to prepare training
  * @todo  Add more training information
@@ -201,10 +208,15 @@ typedef struct nnfw_train_info
   /** Batch size */
   uint32_t batch_size = 1;
   /** loss info */
-  nnfw_loss_info loss_info{.loss = NNFW_TRAIN_LOSS_MEAN_SQUARED_ERROR,
+  nnfw_loss_info loss_info{.loss = NNFW_TRAIN_LOSS_CATEGORICAL_CROSSENTROPY,
                            .reduction_type = NNFW_TRAIN_LOSS_REDUCTION_SUM_OVER_BATCH_SIZE};
   /** optimizer type */
-  NNFW_TRAIN_OPTIMIZER opt = NNFW_TRAIN_OPTIMIZER_SGD;
+  NNFW_TRAIN_OPTIMIZER opt = NNFW_TRAIN_OPTIMIZER_ADAM;
+  nnfw_adam_option adam_opt{.beta = 0.9f,
+                       .beta2 = 0.999f,
+                       .epsilon = 1e-7f}; 
+  
+  
 } nnfw_train_info;
 
 /**
