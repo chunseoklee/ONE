@@ -197,6 +197,11 @@ typedef struct nnfw_adam_option
 } nnfw_adam_option;
 
 /**
+ * @brief Maximum numer of trainable operations
+ */
+#define NNFW_TRAINABLE_OPS_MAX_SIZE (256)
+
+/**
  * @brief Training information to prepare training
  * @todo  Add more training information
  *        (e.g. optimizer, loss function, ...)
@@ -212,11 +217,13 @@ typedef struct nnfw_train_info
                            .reduction_type = NNFW_TRAIN_LOSS_REDUCTION_SUM_OVER_BATCH_SIZE};
   /** optimizer type */
   NNFW_TRAIN_OPTIMIZER opt = NNFW_TRAIN_OPTIMIZER_ADAM;
+
+  uint32_t trainble_ops_size = 0;
+  uint32_t trainble_ops_idx[NNFW_TRAINABLE_OPS_MAX_SIZE];
+
   nnfw_adam_option adam_opt{.beta = 0.9f,
                        .beta2 = 0.999f,
                        .epsilon = 1e-7f}; 
-  
-  
 } nnfw_train_info;
 
 /**
