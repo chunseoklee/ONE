@@ -297,7 +297,7 @@ NNFW_STATUS nnfw_session::loadTrainingInfo(char* buf)
   auto num_ops = model->subgraphs()->Get(0)->operators()->size();
   // Load Metadata
   auto const metadata_list = model->metadata();
-  const uint8_t * data;
+  const uint8_t * data = nullptr;
   if (metadata_list != nullptr)
   {
     for (uint32_t i = 0; i < metadata_list->size(); ++i)
@@ -307,13 +307,14 @@ NNFW_STATUS nnfw_session::loadTrainingInfo(char* buf)
         continue;
       data = (model->buffers()->Get(metadata->buffer()))->data()->data();
     }
+    const circle::ModelTraining *traininfo_model =
+     circle::GetModelTraining(static_cast<const void *>(data));
+    _config.training_context.batch_size = traininfo_model->batch_size();
+    loadOptimizerInfo(traininfo_model);
+    loadLossInfo(traininfo_model);
+    loadTrainableOps(traininfo_model, num_ops);
+
   }
-  const circle::ModelTraining *traininfo_model =
-    circle::GetModelTraining(static_cast<const void *>(data));
-  _config.training_context.batch_size = traininfo_model->batch_size();
-  loadOptimizerInfo(traininfo_model);
-  loadLossInfo(traininfo_model);
-  loadTrainableOps(traininfo_model, num_ops);
   return NNFW_STATUS_NO_ERROR;
 }
 
