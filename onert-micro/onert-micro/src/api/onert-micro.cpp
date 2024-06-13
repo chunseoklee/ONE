@@ -185,8 +185,8 @@ nnfw_session::nnfw_session()
   // TODO: Remove after implementing train_set_traininfo
   // Set user defined training settings
   const uint32_t training_epochs = 10;
-  const float lambda = 0.01f;
-  const uint32_t num_train_layers = 0;
+  const float lambda = 0.001f;
+  const uint32_t num_train_layers = 10;
   const onert_micro::OMLoss loss = onert_micro::CROSS_ENTROPY;
   const onert_micro::OMTrainOptimizer train_optim = onert_micro::ADAM;
   const float beta = 0.9;
@@ -196,7 +196,7 @@ nnfw_session::nnfw_session()
   _config.train_mode = true;
   {
     onert_micro::OMTrainingContext train_context;
-    train_context.batch_size = 16;
+    train_context.batch_size = 32;
     train_context.num_of_train_layers = num_train_layers;
     train_context.lambda = lambda;
     train_context.loss = loss;
