@@ -176,6 +176,7 @@ private:
   onert_micro::OMConfig _config;
   DataBuffer _model_buf;
   std::string _model_path;
+  uint8_t* outputbuf;
 };
 
 
@@ -208,6 +209,8 @@ nnfw_session::nnfw_session()
 
     _config.training_context = train_context;
   }
+
+  outputbuf = nullptr;
 }
 
 NNFW_STATUS nnfw_session::create(nnfw_session **session)
@@ -339,10 +342,20 @@ NNFW_STATUS nnfw_session::train_prepare()
 
 NNFW_STATUS nnfw_session::train_run(bool update_weights)
 {
-  // TOOD: micro support update_weights ???
-  _train_interpreter->trainSingleStep(_config);
-  _config.training_context.num_epoch = _config.training_context.num_step / _config.training_context.batch_size + 1;
-
+  if (update_weights){
+    // TOOD: micro support update_weights ???
+    // Here we use this flag for distinguish inference and train in trainaing interpreter
+    _train_interpreter->trainSingleStep(_config);
+    _config.training_context.num_epoch = _config.training_context.num_step / _config.training_context.batch_size + 1;
+  }
+  else {
+    // We do inference logic by using evaluateMetric
+    assert(outputbuf!=nullptr);
+    float loss;
+    _train_interpreter->evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS, &loss, 1);  
+    float* calculated_ptr = (float*)_train_interpreter->getOutputDataAt(0);
+    memcpy(outputbuf, calculated_ptr, sizeof(float) * _train_interpreter->getOutputSizeAt(0));
+  }
   return NNFW_STATUS_NO_ERROR;
 }
 
@@ -375,6 +388,12 @@ NNFW_STATUS nnfw_session::train_set_input(uint32_t index, void *input)
 NNFW_STATUS nnfw_session::train_set_expected(uint32_t index, void *expected)
 {
   _train_interpreter->setTarget((uint8_t*)expected, index);
+  return NNFW_STATUS_NO_ERROR;
+}
+
+NNFW_STATUS nnfw_session::train_set_output(uint32_t index, NNFW_TYPE type, void *buffer, size_t length)
+{
+  outputbuf = (uint8_t*)buffer;
   return NNFW_STATUS_NO_ERROR;
 }
 
@@ -469,4 +488,11 @@ NNFW_STATUS nnfw_train_set_traininfo(nnfw_session *session, const nnfw_train_inf
 {
   NNFW_RETURN_ERROR_IF_NULL(session);
   return session->train_set_traininfo(info);
+}
+
+NNFW_STATUS nnfw_train_set_output(nnfw_session *session, uint32_t index, NNFW_TYPE type, void *buffer,
+                            size_t length)
+{
+  NNFW_RETURN_ERROR_IF_NULL(session);
+  return session->train_set_output(index, type, buffer, length);
 }

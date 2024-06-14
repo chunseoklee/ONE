@@ -152,3 +152,8 @@ OMStatus OMTrainingInterpreter::saveCheckpoint(const OMConfig &config, const cha
 
   return Ok;
 }
+
+void *OMTrainingInterpreter::getOutputDataAt(uint32_t position)
+{
+  return _training_runtime_module.getOutputDataAt(position);
+}

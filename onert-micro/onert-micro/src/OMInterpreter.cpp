@@ -54,5 +54,3 @@ uint32_t OMInterpreter::getOutputSizeAt(uint32_t position)
 {
   return _runtime_module.getOutputSizeAt(position);
 }
-
-OMStatus OMInterpreter::allocateInputs() { return _runtime_module.allocateInputs(); }
