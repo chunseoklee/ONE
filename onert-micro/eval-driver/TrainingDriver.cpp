@@ -179,12 +179,12 @@ int entry(int argc, char **argv)
     config.wof_ptr = nullptr;
 
   // Set user defined training settings
-  const uint32_t training_epochs = 10;
-  const float lambda = 0.01f;
+  const uint32_t training_epochs = 5;
+  const float lambda = 0.001f;
   const uint32_t BATCH_SIZE = 32;
   const uint32_t INPUT_SIZE = 180;
   const uint32_t OUTPUT_SIZE = 4;
-  const uint32_t num_train_layers = 0;
+  const uint32_t num_train_layers = 10;
   const onert_micro::OMLoss loss = onert_micro::CROSS_ENTROPY;
   const onert_micro::OMTrainOptimizer train_optim = onert_micro::ADAM;
   const float beta = 0.9;
@@ -204,22 +204,28 @@ int entry(int argc, char **argv)
     train_context.epsilon = epsilon;
 
     config.training_context = train_context;
+    config.training_context.num_step = 0;
   }
 
-  // Create training interpreter and import models
-  //onert_micro::OMTrainingInterpreter train_interpreter;
-  //train_interpreter.importTrainModel(circle_model.data(), config);
+  //Create training interpreter and import models
+  //1
+  onert_micro::OMTrainingInterpreter train_interpreter;
+  train_interpreter.importTrainModel(circle_model.data(), config);
+  //2
   nnfw_session* session;
   nnfw_create_session(&session);
   nnfw_load_model_from_file(session, circle_model_path);
   nnfw_train_prepare(session);
+
   // Temporary buffer to read input data from file using BATCH_SIZE
   float training_input[BATCH_SIZE * INPUT_SIZE];
   float training_target[BATCH_SIZE * OUTPUT_SIZE];
   // Note: here test size used with BATCH_SIZE = 1
   float test_input[INPUT_SIZE];
   float test_target[OUTPUT_SIZE];
-  std::vector<float> cross_entropy_v;
+  std::vector<float> cross_entropy_v1;
+  std::vector<float> cross_entropy_v2;
+
   float min_ent = std::numeric_limits<float>::max();
 
   for (uint32_t e = 0; e < training_epochs; ++e)
@@ -233,9 +239,6 @@ int entry(int argc, char **argv)
       uint32_t cur_batch_size = std::min(BATCH_SIZE, num_train_data_samples - BATCH_SIZE * i );
       cur_batch_size = std::max(1u, cur_batch_size);
 
-      // TODO: how to update num_epoch w/o this line ?
-      config.training_context.num_step++;
-
       // Read current input and target data
       readDataFromFile(input_input_train_data_path, reinterpret_cast<char *>(training_input),
                        sizeof(float) * INPUT_SIZE * cur_batch_size,
@@ -246,8 +249,11 @@ int entry(int argc, char **argv)
                        i * sizeof(MODEL_TYPE) * OUTPUT_SIZE * BATCH_SIZE);
 
       // Set input and target
-      //train_interpreter.setInput(reinterpret_cast<uint8_t *>(training_input), 0);
-      //train_interpreter.setTarget(reinterpret_cast<uint8_t *>(training_target), 0);
+      //1
+      train_interpreter.setInput(reinterpret_cast<uint8_t *>(training_input), 0);
+      train_interpreter.setTarget(reinterpret_cast<uint8_t *>(training_target), 0);
+
+      //2
       nnfw_tensorinfo ti = { .dtype = NNFW_TYPE_TENSOR_FLOAT32,
         .rank = 2,
         .dims = {1,180}};
@@ -255,74 +261,90 @@ int entry(int argc, char **argv)
       nnfw_train_set_expected(session, 0, training_target, nullptr);
 
       // Train with current batch size
+      //1
       //train_interpreter.trainSingleStep(config);
+      //2
       nnfw_train(session, true);
-
-      float cross_entropy_metric = 0.f;
-
-      // Evaluate cross_entropy and accuracy metrics
-      // train_interpreter.evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS,
-      //                                  reinterpret_cast<void *>(&cross_entropy_metric),
-      //                                  cur_batch_size);
-      nnfw_train_get_loss(session, 0, &cross_entropy_metric);
-
-      // Save them into vectors
-      cross_entropy_v.push_back(cross_entropy_metric);
-    }
-    // Calculate and print average values
-    float sum_ent = std::accumulate(cross_entropy_v.begin(), cross_entropy_v.end(), 0.f);
-    std::cout << "Train Average CROSS ENTROPY = " << sum_ent / cross_entropy_v.size() << "\n";
-
-    // Run test for current epoch
-    std::cout << "Run test for epoch: " << e + 1 << "/" << training_epochs << "\n";
-    num_steps = num_test_data_samples;
-
-    cross_entropy_v.clear();
-
-    for (int i = 0; i < num_steps; ++i)
-    {
-      uint32_t cur_batch_size = 1;
-      readDataFromFile(input_input_test_data_path, reinterpret_cast<char *>(test_input),
-                       sizeof(float) * INPUT_SIZE * cur_batch_size,
-                       i * sizeof(MODEL_TYPE) * INPUT_SIZE);
-
-      readDataFromFile(input_target_test_data_path, reinterpret_cast<char *>(test_target),
-                       sizeof(float) * OUTPUT_SIZE * cur_batch_size,
-                       i * sizeof(MODEL_TYPE) * OUTPUT_SIZE);
  
-      nnfw_tensorinfo ti = { .dtype = NNFW_TYPE_TENSOR_FLOAT32,
-        .rank = 2,
-        .dims = {1,180}};
-      nnfw_train_set_input(session, 0, test_input, &ti);
-      nnfw_train_set_expected(session, 0, test_target, nullptr);
-
       float cross_entropy_metric = 0.f;
+
+      std::cout << "step " << i << "\n";
+      // Evaluate cross_entropy and accuracy metrics
+      //1
+      train_interpreter.evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS,
+                                        reinterpret_cast<void *>(&cross_entropy_metric),
+                                        cur_batch_size);
+      std::cout << "Train CROSS ENTROPY = " << cross_entropy_metric << "\n";
+      cross_entropy_v1.push_back(cross_entropy_metric);
+      //2
       nnfw_train_get_loss(session, 0, &cross_entropy_metric);
-      cross_entropy_v.push_back(cross_entropy_metric);
+      std::cout << "Train CROSS ENTROPY = " << cross_entropy_metric << "\n";
+      cross_entropy_v2.push_back(cross_entropy_metric);
+      
+      //float fbuf[4];
+      //nnfw_train_set_output(session, 0, NNFW_TYPE_TENSOR_FLOAT32, fbuf, 4);
+      //nnfw_train(session, false);
+
     }
     // Calculate and print average values
-    sum_ent = std::accumulate(cross_entropy_v.begin(), cross_entropy_v.end(), 0.f);
-    std::cout << "Test Average CROSS ENTROPY = " << sum_ent / cross_entropy_v.size() << "\n";
+    float sum_ent = std::accumulate(cross_entropy_v1.begin(), cross_entropy_v1.end(), 0.f);
+    std::cout << "Train Average CROSS ENTROPY for 1 = " << sum_ent / cross_entropy_v1.size() << "\n";
+    sum_ent = std::accumulate(cross_entropy_v2.begin(), cross_entropy_v2.end(), 0.f);
+    std::cout << "Train Average CROSS ENTROPY for 2 = " << sum_ent / cross_entropy_v2.size() << "\n";
+    cross_entropy_v1.clear();
+    cross_entropy_v2.clear();
 
-    float ent = sum_ent / cross_entropy_v.size();
-    if (ent < min_ent)
-    {
-      // Save best checkpoint
-      //train_interpreter.saveCheckpoint(config, checkpoints_path);
-      nnfw_train_export_checkpoint(session, checkpoints_path);
-      min_ent = ent;
-      std::cout << "Found new min Test loss = " << min_ent << " in epoch = " << e + 1
-                << " / " << training_epochs << "\n";
-    }
+
+  //   // Run test for current epoch
+  //   std::cout << "Run test for epoch: " << e + 1 << "/" << training_epochs << "\n";
+  //   num_steps = num_test_data_samples;
+
+  //   cross_entropy_v.clear();
+
+  //   for (int i = 0; i < num_steps; ++i)
+  //   {
+  //     uint32_t cur_batch_size = 1;
+  //     readDataFromFile(input_input_test_data_path, reinterpret_cast<char *>(test_input),
+  //                      sizeof(float) * INPUT_SIZE * cur_batch_size,
+  //                      i * sizeof(MODEL_TYPE) * INPUT_SIZE);
+
+  //     readDataFromFile(input_target_test_data_path, reinterpret_cast<char *>(test_target),
+  //                      sizeof(float) * OUTPUT_SIZE * cur_batch_size,
+  //                      i * sizeof(MODEL_TYPE) * OUTPUT_SIZE);
+
+  //     nnfw_tensorinfo ti = { .dtype = NNFW_TYPE_TENSOR_FLOAT32,
+  //       .rank = 2,
+  //       .dims = {1,180}};
+  //     nnfw_train_set_input(session, 0, test_input, &ti);
+  //     nnfw_train_set_expected(session, 0, test_target, nullptr);
+
+  //     float cross_entropy_metric = 0.f;
+  //     nnfw_train_get_loss(session, 0, &cross_entropy_metric);
+  //     cross_entropy_v.push_back(cross_entropy_metric);
+  //   }
+  //   // Calculate and print average values
+  //   sum_ent = std::accumulate(cross_entropy_v.begin(), cross_entropy_v.end(), 0.f);
+  //   std::cout << "Test Average CROSS ENTROPY = " << sum_ent / cross_entropy_v.size() << "\n";
+
+  //   float ent = sum_ent / cross_entropy_v.size();
+  //   if (ent < min_ent)
+  //   {
+  //     // Save best checkpoint
+  //     //train_interpreter.saveCheckpoint(config, checkpoints_path);
+  //     nnfw_train_export_checkpoint(session, checkpoints_path);
+  //     min_ent = ent;
+  //     std::cout << "Found new min Test loss = " << min_ent << " in epoch = " << e + 1
+  //               << " / " << training_epochs << "\n";
+  //   }
   }
 
-  // Load best model
-  //train_interpreter.loadCheckpoint(config, checkpoints_path);
-  nnfw_train_import_checkpoint(session, checkpoints_path);
+  // // Load best model
+  // //train_interpreter.loadCheckpoint(config, checkpoints_path);
+  // nnfw_train_import_checkpoint(session, checkpoints_path);
 
-  // Save training best result
-  //train_interpreter.saveModel(config, output_trained_file_path);
-  nnfw_train_export_circle(session, output_trained_file_path);
+  // // Save training best result
+  // //train_interpreter.saveModel(config, output_trained_file_path);
+  // nnfw_train_export_circle(session, output_trained_file_path);
 
   // nnfw api case
   //nnfw_session* session;
