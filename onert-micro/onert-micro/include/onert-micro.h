@@ -356,6 +356,26 @@ NNFW_STATUS nnfw_train_set_expected(nnfw_session *session, uint32_t index, void 
  */
 NNFW_STATUS nnfw_train_get_loss(nnfw_session *session, uint32_t index, float *loss);
 
+/**
+ * @brief Set training output buffer
+ *
+ * This function must be called after {@link nnfw_train_prepare}, \p buffer given to this function
+ * can be reused for training. \p length must be greater or equal than the operand requires.
+ * An output operand can have unspecified shape and deduced dynamically during the execution. You
+ * must provide \p buffer large enough.
+ *
+ * @param[in]   session Session from inference output is to be extracted
+ * @param[in]   index   Index of output to be set (0-indexed)
+ * @param[in]   type    Type of the output
+ * @param[out]  buffer  Raw buffer for output
+ * @param[in]   length  Size of bytes of output buffer
+ *
+ * @return      @c NNFW_STATUS_NO_ERROR if successful
+ */
+NNFW_STATUS nnfw_train_set_output(nnfw_session *session, uint32_t index, NNFW_TYPE type,
+                                  void *buffer, size_t length);
+
+
 
 #ifdef __cplusplus
 }
