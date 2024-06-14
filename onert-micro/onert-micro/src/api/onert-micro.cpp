@@ -351,10 +351,11 @@ NNFW_STATUS nnfw_session::train_run(bool update_weights)
   else {
     // We do inference logic by using evaluateMetric
     assert(outputbuf!=nullptr);
-    float loss;
-    _train_interpreter->evaluateMetric(onert_micro::CROSS_ENTROPY_METRICS, &loss, 1);  
+    _train_interpreter->allocateInputs();
+    _train_interpreter->run(); 
     float* calculated_ptr = (float*)_train_interpreter->getOutputDataAt(0);
     memcpy(outputbuf, calculated_ptr, sizeof(float) * _train_interpreter->getOutputSizeAt(0));
+    _train_interpreter->reset();
   }
   return NNFW_STATUS_NO_ERROR;
 }
