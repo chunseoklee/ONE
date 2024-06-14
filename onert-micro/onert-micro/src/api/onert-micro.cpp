@@ -204,7 +204,7 @@ nnfw_session::nnfw_session()
     train_context.beta = beta;
     train_context.beta_squares = beta_squares;
     train_context.epsilon = epsilon;
-    train_context.num_step = 1;
+    train_context.num_step = 0;
 
     _config.training_context = train_context;
   }
@@ -382,7 +382,11 @@ NNFW_STATUS nnfw_session::train_set_traininfo(const nnfw_train_info *info)
 {
   _config.training_context.lambda = info->learning_rate;
   _config.training_context.batch_size = info->batch_size;
-  
+  _config.training_context.optimizer = (info->opt == NNFW_TRAIN_OPTIMIZER_ADAM)? onert_micro::ADAM : onert_micro::SGD;
+  _config.training_context.beta = info->adam_opt.beta;
+  _config.training_context.beta_squares = info->adam_opt.beta2;
+  _config.training_context.beta = info->adam_opt.epsilon;
+
   return NNFW_STATUS_NO_ERROR;
 }
 
