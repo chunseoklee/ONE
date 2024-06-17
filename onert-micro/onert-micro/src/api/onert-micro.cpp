@@ -352,6 +352,9 @@ NNFW_STATUS nnfw_session::train_run(bool update_weights)
     // We do inference logic by using evaluateMetric
     assert(outputbuf!=nullptr);
     _train_interpreter->allocateInputs();
+    float* allocated_input_data = (float*)_train_interpreter->getInputDataAt(0);
+    float* user_input_data = (float*)_train_interpreter->getInputData(0);
+    memcpy(allocated_input_data, user_input_data, sizeof(float) * _train_interpreter->getInputSizeAt(0));
     _train_interpreter->run(); 
     float* calculated_ptr = (float*)_train_interpreter->getOutputDataAt(0);
     memcpy(outputbuf, calculated_ptr, sizeof(float) * _train_interpreter->getOutputSizeAt(0));
