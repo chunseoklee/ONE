@@ -207,7 +207,7 @@ int entry(int argc, char **argv)
     config.wof_ptr = nullptr;
 
   // Set user defined training settings
-  const uint32_t training_epochs = 10;
+  const uint32_t training_epochs = 20;
   const float lambda = 0.001f;
   const uint32_t BATCH_SIZE = 32;
   const uint32_t INPUT_SIZE = 180;
@@ -320,16 +320,16 @@ int entry(int argc, char **argv)
 
   // Run test for current epoch
   std::cout << "Run test for epoch: " << e + 1 << "/" << training_epochs << "\n";
-  num_steps = num_test_data_samples;
+  num_steps = num_train_data_samples;
   int correct_predictions = 0;
   for (int i = 0; i < num_steps; ++i)
   {
        uint32_t cur_batch_size = 1;
-       readDataFromFile(input_input_test_data_path, reinterpret_cast<char *>(test_input),
+       readDataFromFile(input_input_train_data_path, reinterpret_cast<char *>(test_input),
                         sizeof(float) * INPUT_SIZE * cur_batch_size,
                         i * sizeof(MODEL_TYPE) * INPUT_SIZE);
 
-       readDataFromFile(input_target_test_data_path, reinterpret_cast<char *>(test_target),
+       readDataFromFile(input_target_train_data_path , reinterpret_cast<char *>(test_target),
                         sizeof(float) * OUTPUT_SIZE * cur_batch_size,
                         i * sizeof(MODEL_TYPE) * OUTPUT_SIZE);
 
@@ -345,7 +345,7 @@ int entry(int argc, char **argv)
        correct_predictions += (is_correct(4, output, test_target))? 1 : 0;
   }
   // Calculate and print accuracy
-  float accuracy = (float)correct_predictions / num_test_data_samples;
+  float accuracy = (float)correct_predictions / num_train_data_samples;
   printf("Accuracy: %f\n", accuracy);
   if ( accuracy > max_accuracy)
   {
