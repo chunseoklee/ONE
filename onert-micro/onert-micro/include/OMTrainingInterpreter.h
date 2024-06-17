@@ -86,7 +86,10 @@ public:
   // Load current status from checkpoint and save it in current model and in current config
   OMStatus loadCheckpoint(OMConfig &config, const char *load_path);
   
+  void *getInputDataAt(uint32_t position);
   void *getOutputDataAt(uint32_t position);
+
+  void *getInputData(uint32_t position);
 
   OMStatus run() { return _training_runtime_module.run(); }
   OMStatus allocateInputs() { return _training_runtime_module.allocateInputs(); }
