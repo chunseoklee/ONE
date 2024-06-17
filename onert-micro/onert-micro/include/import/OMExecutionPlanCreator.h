@@ -35,6 +35,11 @@ struct OMExecutionPlanCreator
                                       core::OMRuntimeContext &runtime_context,
                                       core::memory::OMRuntimeAllocator &allocator,
                                       const OMConfig &configs);
+  // Create execution plan for backward graph
+  static OMStatus createBackwardExecutionPlan(core::OMRuntimeStorage &runtime_storage,
+                                              core::OMRuntimeContext &runtime_context,
+                                              core::memory::OMRuntimeAllocator &allocator,
+                                              const OMConfig &configs);
 };
 
 } // namespace import

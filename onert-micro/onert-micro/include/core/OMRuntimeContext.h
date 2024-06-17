@@ -20,6 +20,7 @@
 #include "OMStatus.h"
 
 #include "reader/OMCircleReader.h"
+#include "reader/OMWeightOnlyFormatReader.h"
 
 #include <cstdint>
 
@@ -32,6 +33,7 @@ class OMRuntimeContext
 {
 private:
   reader::OMCircleReader _reader;
+  reader::OMWeightOnlyFormatReader _wof_reader;
 
 public:
   OMRuntimeContext() = default;
@@ -50,6 +52,14 @@ public:
     status = _reader.select_subgraph(graph_index);
     if (status != Ok)
       return status;
+    return Ok;
+  }
+
+  OMStatus setWofFile(char *wof_ptr)
+  {
+    OMStatus status;
+    _wof_reader.parse(wof_ptr);
+
     return Ok;
   }
 

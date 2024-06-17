@@ -18,6 +18,8 @@ set(OM_SOURCE_API_DIR "${OM_SOURCE_DIR}/api")
 
 #OM_Interpreter lib binary name
 set(OM_INTERPRETER_LIB "onert_micro_interpreter")
+#OM_Training_Interpreter lib binary name
+set(OM_TRAINING_INTERPRETER_LIB "onert_micro_training_interpreter")
 #Core lib binary name
 set(OM_CORE_LIB "onert_micro_core${OM_SUFFIX}")
 #Execute lib binary name
@@ -56,4 +58,19 @@ add_library(${OM_INTERPRETER_LIB} STATIC OMInterpreter.cpp)
 target_include_directories(${OM_INTERPRETER_LIB} PUBLIC "${OM_INCLUDE_DIR}")
 target_link_libraries(${OM_INTERPRETER_LIB} PUBLIC ${OM_CORE_LIB})
 
+# Training part
+message (STATUS "ONERT MICRO TRAINING BEGIN")
+
+#build train lib
+add_subdirectory(${OM_SOURCE_TRAIN_DIR})
+
+target_link_libraries(${OM_CORE_LIB} PUBLIC ${OM_TRAIN_LIB})
+
+add_library(${OM_TRAINING_INTERPRETER_LIB} STATIC OMTrainingInterpreter.cpp)
+
+target_include_directories(${OM_TRAINING_INTERPRETER_LIB} PUBLIC "${OM_INCLUDE_DIR}")
+target_link_libraries(${OM_TRAINING_INTERPRETER_LIB} PUBLIC ${OM_CORE_LIB})
+target_link_libraries(${OM_TRAINING_INTERPRETER_LIB} PUBLIC ${OM_TRAIN_LIB})
+
+message (STATUS "ONERT MICRO TRAINING END")
 message(STATUS "ONERT MICRO FINISHED")

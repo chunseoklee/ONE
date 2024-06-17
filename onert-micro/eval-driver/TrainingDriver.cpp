@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-#include <luci_interpreter/Interpreter.h>
-#include <luci_interpreter/TrainingOnertMicro.h>
-#include <luci_interpreter/TrainingSettings.h>
-
+#include "OMTrainingInterpreter.h"
 #include <stdexcept>
 #include <cstdlib>
 #include <fstream>
@@ -35,11 +32,29 @@ namespace
 
 using DataBuffer = std::vector<char>;
 
-void readDataFromFile(const std::string &filename, char *data, size_t data_size)
+void readDataFromFile(const std::string &filename, char *data, size_t data_size,
+                      size_t start_position = 0)
 {
+  std::streampos start = start_position;
+
   std::ifstream fs(filename, std::ifstream::binary);
   if (fs.fail())
     throw std::runtime_error("Cannot open file \"" + filename + "\".\n");
+
+  fs.seekg(start);
+
+  if (fs.read(data, data_size).fail())
+    throw std::runtime_error("Failed to read data from file \"" + filename + "\".\n");
+  fs.close();
+}
+
+void readDataFromFile(std::ifstream &fs, const std::string &filename, char *data, size_t data_size,
+                      size_t start_position = 0)
+{
+  std::streampos start = start_position;
+
+  fs.seekg(start);
+
   if (fs.read(data, data_size).fail())
     throw std::runtime_error("Failed to read data from file \"" + filename + "\".\n");
 }
@@ -55,35 +70,9 @@ void writeDataToFile(const std::string &filename, const char *data, size_t data_
   }
 }
 
-} // namespace
-
-/*
- * @brief EvalDriver main
- *
- *        Driver for testing luci-inerpreter
- *
- */
-int entry(int argc, char **argv)
+DataBuffer readFile(const char *path)
 {
-  if (argc != 8)
-  {
-    std::cerr
-      << "Usage: " << argv[0]
-      << " <path/to/circle/model> <path/to/input/train_data> <path/to/input/label_train_data> "
-         "<path/to/input/test_data> <path/to/input/label_test_data> num_of_train_smpl "
-         "num_of_test_smpl\n";
-    return EXIT_FAILURE;
-  }
-
-  const char *filename = argv[1];
-  const char *input_train_data_path = argv[2];
-  const char *input_label_train_data_path = argv[3];
-  const char *input_test_data_path = argv[4];
-  const char *input_label_test_data_path = argv[5];
-  const int32_t num_train_data_samples = atoi(argv[6]);
-  const int32_t num_test_data_samples = atoi(argv[7]);
-
-  std::ifstream file(filename, std::ios::binary | std::ios::in);
+  std::ifstream file(path, std::ios::binary | std::ios::in);
   if (!file.good())
   {
     std::string errmsg = "Failed to open file";
@@ -105,13 +94,10 @@ int entry(int argc, char **argv)
     throw std::runtime_error(errmsg.c_str());
   }
 
-  // Create interpreter.
-  luci_interpreter::Interpreter interpreter(model_data.data(), true);
+  return model_data;
+}
 
-  luci_interpreter::training::TrainingSettings settings;
-  settings.learning_rate = 0.0001;
-  settings.number_of_epochs = 100;
-  settings.batch_size = 1;
+} // namespace
 
 bool is_correct(const uint32_t flat_size, float *calculated_data, float *target_data)
 {
@@ -162,8 +148,46 @@ int entry(int argc, char **argv)
     return EXIT_FAILURE;
   }
 
-  char *train_data = new char[input_size * num_train_data_samples];
-  char *label_train_data = new char[output_size * num_train_data_samples];
+  const char *circle_model_path = nullptr;
+  const char *wof_file_path = nullptr;
+  const char *output_trained_file_path = nullptr;
+  const char *input_input_train_data_path = nullptr;
+  const char *input_target_train_data_path = nullptr;
+  const char *input_input_test_data_path = nullptr;
+  const char *input_target_test_data_path = nullptr;
+  const char *checkpoints_path = nullptr;
+  int32_t num_train_data_samples = 0;
+  int32_t num_test_data_samples = 0;
+
+  if (argc == 11)
+  {
+    circle_model_path = argv[1];
+    wof_file_path = argv[2];
+    output_trained_file_path = argv[3];
+    checkpoints_path = argv[4];
+    input_input_train_data_path = argv[5];
+    input_target_train_data_path = argv[6];
+    input_input_test_data_path = argv[7];
+    input_target_test_data_path = argv[8];
+    num_train_data_samples = atoi(argv[9]);
+    num_test_data_samples = atoi(argv[10]);
+  }
+  else if (argc == 10)
+  {
+    circle_model_path = argv[1];
+    output_trained_file_path = argv[2];
+    checkpoints_path = argv[3];
+    input_input_train_data_path = argv[4];
+    input_target_train_data_path = argv[5];
+    input_input_test_data_path = argv[6];
+    input_target_test_data_path = argv[7];
+    num_train_data_samples = atoi(argv[8]);
+    num_test_data_samples = atoi(argv[9]);
+  }
+  else
+  {
+    throw std::runtime_error("Unknown commands number\n");
+  }
 
   DataBuffer circle_model = readFile(circle_model_path);
   DataBuffer wof_data;
@@ -184,11 +208,11 @@ int entry(int argc, char **argv)
 
   // Set user defined training settings
   const uint32_t training_epochs = 10;
-  const float lambda = 0.001f;
+  const float learning_rate = 0.001f;
   const uint32_t BATCH_SIZE = 32;
   const uint32_t INPUT_SIZE = 180;
   const uint32_t OUTPUT_SIZE = 4;
-  const uint32_t num_train_layers = 10;
+  const uint32_t num_train_layers = 4;
   const onert_micro::OMLoss loss = onert_micro::CROSS_ENTROPY;
   const onert_micro::OMTrainOptimizer train_optim = onert_micro::ADAM;
   const float beta = 0.9;
@@ -200,7 +224,7 @@ int entry(int argc, char **argv)
     onert_micro::OMTrainingContext train_context;
     train_context.batch_size = BATCH_SIZE;
     train_context.num_of_train_layers = num_train_layers;
-    train_context.lambda = lambda;
+    train_context.learning_rate = learning_rate;
     train_context.loss = loss;
     train_context.optimizer = train_optim;
     train_context.beta = beta;
