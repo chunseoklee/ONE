@@ -409,7 +409,7 @@ NNFW_STATUS nnfw_session::train_set_traininfo(const nnfw_train_info *info)
   _config.training_context.beta = info->adam_opt.beta;
   _config.training_context.beta_squares = info->adam_opt.beta2;
   _config.training_context.beta = info->adam_opt.epsilon;
-
+  _config.training_context.num_of_train_layers = info->num_trainble_ops;
   return NNFW_STATUS_NO_ERROR;
 }
 
