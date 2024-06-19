@@ -218,10 +218,10 @@ typedef struct nnfw_train_info
   /** optimizer type */
   NNFW_TRAIN_OPTIMIZER opt = NNFW_TRAIN_OPTIMIZER_ADAM;
 
-  uint32_t trainble_ops_size = 0;
-  uint32_t trainble_ops_idx[NNFW_TRAINABLE_OPS_MAX_SIZE];
+  uint32_t num_trainble_ops = 0;
 
   nnfw_adam_option adam_opt{.beta = 0.9f,
+
                        .beta2 = 0.999f,
                        .epsilon = 1e-7f}; 
 } nnfw_train_info;
