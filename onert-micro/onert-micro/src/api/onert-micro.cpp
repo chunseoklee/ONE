@@ -186,7 +186,7 @@ nnfw_session::nnfw_session()
   // TODO: Remove after implementing train_set_traininfo
   // Set user defined training settings
   const uint32_t training_epochs = 10;
-  const float lambda = 0.001f;
+  const float learning_rate = 0.001f;
   const uint32_t num_train_layers = 10;
   const onert_micro::OMLoss loss = onert_micro::CROSS_ENTROPY;
   const onert_micro::OMTrainOptimizer train_optim = onert_micro::ADAM;
@@ -199,7 +199,7 @@ nnfw_session::nnfw_session()
     onert_micro::OMTrainingContext train_context;
     train_context.batch_size = 32;
     train_context.num_of_train_layers = num_train_layers;
-    train_context.lambda = lambda;
+    train_context.learning_rate = learning_rate;
     train_context.loss = loss;
     train_context.optimizer = train_optim;
     train_context.beta = beta;
@@ -244,11 +244,11 @@ NNFW_STATUS nnfw_session::loadOptimizerInfo(const circle::ModelTraining *circle_
   {
     case circle::Optimizer_SGD:
       _config.training_context.optimizer = onert_micro::SGD;
-      _config.training_context.lambda = circle_model->optimizer_opt_as_SGDOptions()->learning_rate();
+      _config.training_context.learning_rate = circle_model->optimizer_opt_as_SGDOptions()->learning_rate();
       break;
     case circle::Optimizer_ADAM:
       _config.training_context.optimizer = onert_micro::ADAM;
-      _config.training_context.lambda = circle_model->optimizer_opt_as_AdamOptions()->learning_rate();
+      _config.training_context.learning_rate = circle_model->optimizer_opt_as_AdamOptions()->learning_rate();
       _config.training_context.beta = circle_model->optimizer_opt_as_AdamOptions()->beta_1();
       _config.training_context.beta_squares = circle_model->optimizer_opt_as_AdamOptions()->beta_2();
       _config.training_context.epsilon = circle_model->optimizer_opt_as_AdamOptions()->epsilon();
@@ -403,7 +403,7 @@ NNFW_STATUS nnfw_session::train_set_output(uint32_t index, NNFW_TYPE type, void 
 
 NNFW_STATUS nnfw_session::train_set_traininfo(const nnfw_train_info *info)
 {
-  _config.training_context.lambda = info->learning_rate;
+  _config.training_context.learning_rate = info->learning_rate;
   _config.training_context.batch_size = info->batch_size;
   _config.training_context.optimizer = (info->opt == NNFW_TRAIN_OPTIMIZER_ADAM)? onert_micro::ADAM : onert_micro::SGD;
   _config.training_context.beta = info->adam_opt.beta;

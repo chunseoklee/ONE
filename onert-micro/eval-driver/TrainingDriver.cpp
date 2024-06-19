@@ -208,7 +208,7 @@ int entry(int argc, char **argv)
 
   // Set user defined training settings
   const uint32_t training_epochs = 20;
-  const float lambda = 0.001f;
+  const float learning_rate = 0.001f;
   const uint32_t BATCH_SIZE = 32;
   const uint32_t INPUT_SIZE = 180;
   const uint32_t OUTPUT_SIZE = 4;
@@ -224,7 +224,7 @@ int entry(int argc, char **argv)
     onert_micro::OMTrainingContext train_context;
     train_context.batch_size = BATCH_SIZE;
     train_context.num_of_train_layers = num_train_layers;
-    train_context.lambda = lambda;
+    train_context.learning_rate = learning_rate;
     train_context.loss = loss;
     train_context.optimizer = train_optim;
     train_context.beta = beta;
