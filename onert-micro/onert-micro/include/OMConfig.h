@@ -72,12 +72,13 @@ struct OMTrainingContext
   uint32_t num_of_train_layers = 0;
   OMTrainOptimizer optimizer = SGD;
   OMLoss loss = MSE;
-  float lambda = 0.f;
+  float learning_rate = 0.f;
   float beta = 0.9f;
   float beta_squares = 0.9f;
   float epsilon = 10e-8;
   uint32_t num_step = 0;
   uint32_t num_epoch = 0;
+  uint32_t epochs = 0;
 };
 
 /*
