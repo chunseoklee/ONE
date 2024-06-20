@@ -104,48 +104,13 @@ private:
 
 public:
   ~nnfw_session();
+
   NNFW_STATUS load_model_from_file(const char *package_file_path);
-  NNFW_STATUS prepare();
-  NNFW_STATUS run();
-
-  NNFW_STATUS set_input(uint32_t index, NNFW_TYPE type, const void *buffer, size_t length);
-  NNFW_STATUS set_output(uint32_t index, NNFW_TYPE type, void *buffer, size_t length);
-
-  NNFW_STATUS input_size(uint32_t *number);
-  NNFW_STATUS output_size(uint32_t *number);
-
-  NNFW_STATUS set_input_layout(uint32_t index, NNFW_LAYOUT layout);
-  NNFW_STATUS set_output_layout(uint32_t index, NNFW_LAYOUT layout);
-
-  NNFW_STATUS set_input_tensorinfo(uint32_t index, const nnfw_tensorinfo *ti);
-
-  NNFW_STATUS input_tensorinfo(uint32_t index, nnfw_tensorinfo *ti);
-  NNFW_STATUS output_tensorinfo(uint32_t index, nnfw_tensorinfo *ti);
-
-  //
-  // Internal-only API
-  //
 
   NNFW_STATUS set_config(const char *key, const char *value);
   NNFW_STATUS get_config(const char *key, char *value, size_t value_size);
-  NNFW_STATUS load_circle_from_buffer(uint8_t *buffer, size_t size);
-  NNFW_STATUS load_model_from_modelfile(const char *file_path);
 
-  //
-  // Experimental API
-  //
-  NNFW_STATUS push_pipeline_input(std::vector<void *> *inputs, std::vector<uint32_t> *lengths);
-  NNFW_STATUS pop_pipeline_output(std::vector<void *> *outputs);
 
-  NNFW_STATUS input_tensorindex(const char *tensorname, uint32_t *index);
-  NNFW_STATUS output_tensorindex(const char *tensorname, uint32_t *index);
-  /**
-   * @brief   Set backends with string-encoded mapping from operation index to backend type
-   *          (cpu, acl_cl)
-   */
-  NNFW_STATUS set_backends_per_operation(const char *backend_settings);
-
-  NNFW_STATUS train_get_traininfo(nnfw_train_info *info);
   NNFW_STATUS train_set_traininfo(const nnfw_train_info *info);
   NNFW_STATUS train_prepare();
   NNFW_STATUS train_input_tensorinfo(uint32_t index, nnfw_tensorinfo *ti);
