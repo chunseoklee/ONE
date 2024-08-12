@@ -154,6 +154,19 @@ OMStatus onert_micro::execute::execute_kernel_CircleSVDF(const OMExecuteArgs &ex
     }
     break;
 #endif // DIS_FLOAT
+#ifndef DIS_QUANT
+    case circle::TensorType_INT8:
+    {
+      status = pal::SVDF(
+        utils::castInputData<int8_t>(input_data), utils::castInputData<int8_t>(weights_feature_data),
+        utils::castInputData<int8_t>(weights_time_data), utils::castInputData<int8_t>(bias_data),
+        utils::castOutputData<int8_t>(activation_state_data),
+        utils::castOutputData<int8_t>(scratch_buffer), utils::castOutputData<int8_t>(output_data),
+        rank, input_size, batch_size, num_filters, num_units, memory_size,
+        options->fused_activation_function());
+    }
+    break;
+#endif // DIS_QUANT
     default:
     {
       status = UnsupportedActivation;
