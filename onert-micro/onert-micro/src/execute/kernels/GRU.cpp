@@ -120,22 +120,29 @@ OMStatus onert_micro::execute::execute_kernel_CircleGRU(const OMExecuteArgs &exe
     core::memory::OMMemoryManager::allocateMemory(core::OMRuntimeShape(hidden_hidden).flatSize() *
                                                     sizeof(core::OMDataType(hidden_hidden->type())),
                                                   &output_hidden_data);
-  if (status != Ok)
+  if (status != Ok) {
+    core::memory::OMMemoryManager::deallocateMemory(output_hidden_data);
     return status;
+  }
   status = core::memory::OMMemoryManager::allocateMemory(
     core::OMRuntimeShape(hidden_input).flatSize() * sizeof(core::OMDataType(hidden_input->type())),
     &output_input_data);
-  if (status != Ok)
+  if (status != Ok) {
+    core::memory::OMMemoryManager::deallocateMemory(output_input_data);
+    core::memory::OMMemoryManager::deallocateMemory(output_hidden_data);
     return status;
-
+  }
   // If train mode need to allocate memory for internal intermediate tensors for calculation
   // gradients further Number of intermediate tensors
   const int32_t num_of_intermediate_tensors = 9;
   // Note: size of the intermediate is equal to output size (should be checked during import phase)
   const int32_t size_of_intermediate_tensors = core::OMRuntimeShape(output).flatSize();
   assert(size_of_intermediate_tensors > 0);
-  if (size_of_intermediate_tensors == 0)
+  if (size_of_intermediate_tensors == 0) {
+    core::memory::OMMemoryManager::deallocateMemory(output_input_data);
+    core::memory::OMMemoryManager::deallocateMemory(output_hidden_data);
     return UnknownError;
+  }
 
   const int32_t input_size = core::OMRuntimeShape(input).flatSize();
   const int32_t output_size = size_of_intermediate_tensors;
@@ -164,8 +171,12 @@ OMStatus onert_micro::execute::execute_kernel_CircleGRU(const OMExecuteArgs &exe
 
       status = core::memory::OMMemoryManager::allocateMemory(
         time * intermediate_buffer_size * data_type_size, &intermediate_buffer);
-      if (status != Ok)
+      if (status != Ok) {
+        core::memory::OMMemoryManager::deallocateMemory(output_input_data);
+        core::memory::OMMemoryManager::deallocateMemory(output_hidden_data);
+        core::memory::OMMemoryManager::deallocateMemory(intermediate_buffer);
         return status;
+      }
 
       // Save its buffer to state tensor index
       runtime_storage.saveDataToTensorIndex(intermediate_buffer, state_tensor_index);
