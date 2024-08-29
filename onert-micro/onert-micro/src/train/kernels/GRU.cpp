@@ -114,18 +114,29 @@ OMStatus onert_micro::train::train_kernel_CircleGRU(const OMBackpropExecuteArgs 
   size_t allocation_size = sizeof(core::OMDataType(input->type())) * weight_hidden_shape.dims(0);
   status =
     core::memory::OMMemoryManager::allocateMemory(allocation_size, &left_fc_output_grad_buffer);
-  if (status != Ok)
+  if (status != Ok) {
+    core::memory::OMMemoryManager::deallocateMemory(intermediate_buffer);
+    core::memory::OMMemoryManager::deallocateMemory(left_fc_output_grad_buffer);
     return status;
+  }
   status =
     core::memory::OMMemoryManager::allocateMemory(allocation_size, &right_fc_output_grad_buffer);
-  if (status != Ok)
+  if (status != Ok) {
+    core::memory::OMMemoryManager::deallocateMemory(intermediate_buffer);
+    core::memory::OMMemoryManager::deallocateMemory(left_fc_output_grad_buffer);
+    core::memory::OMMemoryManager::deallocateMemory(right_fc_output_grad_buffer);
     return status;
+  }
 
   assert(left_fc_output_grad_buffer != nullptr and right_fc_output_grad_buffer != nullptr);
 
   // Currently support only float training
-  if (input->type() != circle::TensorType_FLOAT32)
+  if (input->type() != circle::TensorType_FLOAT32) {
+    core::memory::OMMemoryManager::deallocateMemory(intermediate_buffer);
+    core::memory::OMMemoryManager::deallocateMemory(left_fc_output_grad_buffer);
+    core::memory::OMMemoryManager::deallocateMemory(right_fc_output_grad_buffer);
     return UnsupportedType;
+  }
 
   status =
     pal::GRUWeightGrads(core::utils::castInputData<float>(output_grad_data),
