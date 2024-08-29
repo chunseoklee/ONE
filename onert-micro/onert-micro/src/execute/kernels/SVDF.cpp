@@ -152,6 +152,7 @@ OMStatus onert_micro::execute::execute_kernel_CircleSVDF(const OMExecuteArgs &ex
   const int batch_size = input_shape.dims(0);
   const int num_filters = weights_feature_shape.dims(0);
 
+  assert(rank != 0);
   const int num_units = num_filters / rank;
   const int memory_size = weights_time_shape.dims(1);
 

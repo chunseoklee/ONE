@@ -91,6 +91,8 @@ OMStatus onert_micro::import::configure_kernel_CircleSVDF(const OMConfigureArgs 
   const int input_size = input_shape.dims(1);
   const int batch_size = input_shape.dims(0);
   const int num_filters = weights_feature_shape.dims(0);
+
+  assert(rank != 0);
   status = utils::checkCondition(num_filters % rank == 0);
   if (status != Ok)
     return status;
