@@ -160,8 +160,10 @@ OMStatus onert_micro::execute::execute_kernel_CircleSVDF(const OMExecuteArgs &ex
     activation_state_shape.flatSize() * sizeof(core::OMDataType(output->type()));
   status =
     core::memory::OMMemoryManager::allocateMemory(activation_state_size, &activation_state_data);
-  if (status != Ok)
+  if (status != Ok) {
+    core::memory::OMMemoryManager::deallocateMemory(activation_state_data);
     return status;
+  }
 
   std::memset(activation_state_data, 0, activation_state_size);
 
@@ -176,8 +178,11 @@ OMStatus onert_micro::execute::execute_kernel_CircleSVDF(const OMExecuteArgs &ex
         batch_size * num_filters * sizeof(core::OMDataType(output->type())), &scratch_buffer);
 
       assert(status == Ok);
-      if (status != Ok)
+      if (status != Ok) {
+        core::memory::OMMemoryManager::deallocateMemory(activation_state_data);
+        core::memory::OMMemoryManager::deallocateMemory(scratch_buffer);
         return status;
+      }
       status = pal::SVDF(
         utils::castInputData<float>(input_data), utils::castInputData<float>(weights_feature_data),
         utils::castInputData<float>(weights_time_data), utils::castInputData<float>(bias_data),
