@@ -53,6 +53,8 @@ OMStatus inline Logistic(const int flat_size, const float *input_data, float *ou
     else if (val < cutoff_lower)
     {
       result = std::exp(val);
+      printf("%f,", result);
+
     }
     else
     {

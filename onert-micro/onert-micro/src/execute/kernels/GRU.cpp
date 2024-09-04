@@ -190,6 +190,23 @@ OMStatus onert_micro::execute::execute_kernel_CircleGRU(const OMExecuteArgs &exe
                  core::OMRuntimeShape(input), core::OMRuntimeShape(output),
                  core::OMRuntimeShape(hidden_input), core::OMRuntimeShape(hidden_hidden),
                  intermediate_buffer_size, core::utils::castOutputData<float>(intermediate_buffer));
+
+    printf("\nGRU run i/o data: ");
+    printf("input: ");
+    float* f_input = (float*)input_data;
+    for(int j=0;j<180;j++) {
+      printf("%.1f ", f_input[j]);
+    }
+    printf("\n");
+
+    printf("output: ");
+    float* f_output = (float*)output_data;
+    for(int j=0;j<20;j++) {
+      printf("%.1f ", f_output[j]);
+    }
+    printf("\n");
+
+
     }
     break;
 #endif // DIS_FLOAT

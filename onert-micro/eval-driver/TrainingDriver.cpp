@@ -179,11 +179,11 @@ int entry(int argc, char **argv)
     config.wof_ptr = nullptr;
 
   // Set user defined training settings
-  const uint32_t training_epochs = 50;
+  const uint32_t training_epochs = 1;
   const float lambda = 0.001f;
-  const uint32_t BATCH_SIZE = 64;
+  const uint32_t BATCH_SIZE = 4;
   const uint32_t num_train_layers = 4;
-  const onert_micro::OMLoss loss = onert_micro::CROSS_ENTROPY;
+  const onert_micro::OMLoss loss = onert_micro::SPARSE_CROSS_ENTROPY;
   const onert_micro::OMTrainOptimizer train_optim = onert_micro::ADAM;
   const float beta = 0.9;
   const float beta_squares = 0.999;
@@ -235,7 +235,7 @@ int entry(int argc, char **argv)
     uint32_t num_steps = num_train_data_samples / BATCH_SIZE;
     for (int i = 0; i < num_steps; ++i)
     {
-      uint32_t cur_batch_size = std::min(BATCH_SIZE, num_train_data_samples - BATCH_SIZE * i - 1);
+      uint32_t cur_batch_size = std::min(BATCH_SIZE, num_train_data_samples - BATCH_SIZE * i);
       cur_batch_size = std::max(1u, cur_batch_size);
 
       config.training_context.batch_size = cur_batch_size;

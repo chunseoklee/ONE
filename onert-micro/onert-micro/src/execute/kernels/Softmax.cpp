@@ -101,6 +101,24 @@ OMStatus onert_micro::execute::execute_kernel_CircleSoftmax(const OMExecuteArgs 
 
       status = pal::Softmax(params, core::utils::castInputData<float>(input_data),
                             core::utils::castOutputData<float>(output_data));
+    printf("\nSoftmax run i/o data: ");
+    printf("input: ");
+    float* f_input = (float*)input_data;
+    for(int j=0;j<4;j++) {
+      printf("%.1f ", f_input[j]);
+    }
+    printf("\n");
+
+    printf("output: ");
+    float* f_output = (float*)output_data;
+    for(int j=0;j<4;j++) {
+      printf("%.1f ", f_output[j]);
+    }
+    printf("\n");
+
+
+
+
     }
     break;
 #endif // DIS_FLOAT

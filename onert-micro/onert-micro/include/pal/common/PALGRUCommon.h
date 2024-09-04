@@ -86,6 +86,20 @@ void calculateGRU(const float *input_data, const float *weight_input_data,
     intermediate_buffer += output_shape.flatSize();
   }
   Logistic(num_elements, output_input_data, output_input_data);
+  printf("\nlogistic in gru i/o data: ");
+  printf("input: ");
+   float* f_input = (float*)output_input_data;
+   for(int j=0;j<num_elements;j++) {
+     printf("%.1f ", f_input[j]);
+  }
+  printf("\n");
+    printf("output: ");
+    float* f_output = (float*)output_input_data;
+    for(int j=0;j<num_elements;j++) {
+      printf("%f ", f_output[j]);
+    }
+    printf("\n");
+
 
   // If train mode - save most left mul input (right input)
   if (is_train_mode)
