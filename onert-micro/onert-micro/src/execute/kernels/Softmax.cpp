@@ -32,6 +32,17 @@ namespace
 constexpr uint32_t inputTensorIdx = 0;
 constexpr uint32_t outputTensorIdx = 0;
 
+static const int kScaledDiffIntegerBits = 5;
+void preprocessSoftmaxScaling(double beta, double input_scale, int input_integer_bits,
+                              int32_t *quantized_multiplier, int *left_shift)
+{
+  const double max_real_multiplier = (1LL << 31) - 1.0;
+  const double input_beta_real_multiplier =
+    std::min<double>(beta * input_scale * (1 << (31 - input_integer_bits)), max_real_multiplier);
+
+  onert_micro::execute::quantizeMultiplier(input_beta_real_multiplier, quantized_multiplier, left_shift);
+}
+
 } // namespace
 
 // NOTE: doesnt currently support dynamic shapes
@@ -125,6 +136,14 @@ OMStatus onert_micro::execute::execute_kernel_CircleSoftmax(const OMExecuteArgs 
       params.input_scale = input->quantization()->scale()->operator[](0);
       params.output_zp = output->quantization()->zero_point()->operator[](0);
       params.input_zp = input->quantization()->zero_point()->operator[](0);
+
+      int left_shift = 0;
+      preprocessSoftmaxScaling(static_cast<double>(params.beta),
+                               static_cast<double>(params.iput_scale), kScaledDiffIntegerBits,
+                               &params.input_multiplier, &left_shift);
+      params.input_left_shift = left_shift;
+      params.diff_min =
+        -1.0 * kernels::calculateInputRadius(kScaledDiffIntegerBits, params.input_left_shift, 31);
 
       status = pal::Softmax(params, core::utils::castInputData<int8_t>(input_data),
                             core::utils::castOutputData<int8_t>(output_data));
