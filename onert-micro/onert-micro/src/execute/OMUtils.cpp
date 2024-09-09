@@ -155,3 +155,14 @@ void onert_micro::execute::readQuantParams(const circle::Tensor *tensor, long &z
   // read scale
   scale = tensor->quantization()->scale()->operator[](0);
 }
+
+int calculateInputRadius(int input_integer_bits, int input_left_shift, int total_signed_bits)
+{
+  const double max_input_rescaled = 1.0 * ((1 << input_integer_bits) - 1) *
+                                    (1LL << (total_signed_bits - input_integer_bits)) /
+                                    (1LL << input_left_shift);
+  // Tighten bound using floor.  Suppose that we could use the exact value.
+  // After scaling the difference, the result would be at the maximum.  Thus we
+  // must ensure that our value has lower magnitude.
+  return static_cast<int>(std::floor(max_input_rescaled));
+}
