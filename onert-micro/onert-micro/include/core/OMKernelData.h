@@ -174,6 +174,7 @@ struct FloatConv2D
   int32_t pad_w;
   float activation_min;
   float activation_max;
+  const float *weights_scales;
 };
 
 struct FullyConnectedParams

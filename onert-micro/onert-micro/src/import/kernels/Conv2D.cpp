@@ -59,9 +59,7 @@ OMStatus onert_micro::import::configure_kernel_CircleConv2D(const OMConfigureArg
 
   OMStatus status = Ok;
 
-  if ((input->type() == circle::TensorType_FLOAT32 &&
-       weight->type() != circle::TensorType_FLOAT32) or
-      (input->type() == circle::TensorType_INT8 && weight->type() != circle::TensorType_INT8) or
+  if ((input->type() == circle::TensorType_INT8 && weight->type() != circle::TensorType_INT8) or
       (input->type() == circle::TensorType_INT16 && weight->type() != circle::TensorType_INT16))
   {
     return UnsupportedType;
@@ -86,7 +84,7 @@ OMStatus onert_micro::import::configure_kernel_CircleConv2D(const OMConfigureArg
 
   status = utils::checkCondition(bias == nullptr or weight_shape.dims(0) == bias_shape.flatSize());
 
-  if (input->type() == circle::TensorType_FLOAT32)
+  if (input->type() == circle::TensorType_FLOAT32 && weight->type() == circle::TensorType_FLOAT32)
     return status;
 
   auto input_quant = input->quantization();
@@ -102,13 +100,14 @@ OMStatus onert_micro::import::configure_kernel_CircleConv2D(const OMConfigureArg
   auto filter_scales = filter_quant->scale();
   auto output_scales = output_quant->scale();
 
-  status = utils::checkCondition(input_scales != nullptr and filter_scales != nullptr and
-                                 output_scales != nullptr);
+  status = utils::checkCondition(
+    (input_scales != nullptr and filter_scales != nullptr and output_scales != nullptr) or
+    (input_scales == nullptr and filter_scales != nullptr and output_scales == nullptr));
   if (status != Ok)
     return status;
 
   // Support only per channel
-  status = utils::checkCondition(filter_scales->size() > 1);
+  status = utils::checkCondition(filter_scales->size() >= 1);
   if (status != Ok)
     return status;
 

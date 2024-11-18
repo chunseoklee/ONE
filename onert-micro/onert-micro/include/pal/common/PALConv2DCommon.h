@@ -28,9 +28,10 @@ namespace execute
 {
 namespace pal
 {
+template <typename WeightType>
 OMStatus ConvFloat(const core::FloatConv2D *params, const core::OMRuntimeShape &input_shape,
                    const float *input_data, const core::OMRuntimeShape &filter_shape,
-                   const float *filter_data, const float *bias_data,
+                   const WeightType *filter_data, const float *bias_data,
                    const core::OMRuntimeShape &output_shape, float *output_data)
 {
   const int stride_width = params->stride_w;
@@ -59,6 +60,7 @@ OMStatus ConvFloat(const core::FloatConv2D *params, const core::OMRuntimeShape &
       for (int out_x = 0; out_x < output_width; ++out_x)
       {
         const int in_x_origin = (out_x * stride_width) - pad_width;
+        const float *weight_scale_ptr = params->weights_scales;
         for (int out_channel = 0; out_channel < output_depth; ++out_channel)
         {
           float total = 0.f;
@@ -87,10 +89,19 @@ OMStatus ConvFloat(const core::FloatConv2D *params, const core::OMRuntimeShape &
                   ((out_channel * filter_height + filter_y) * filter_width + filter_x) *
                     input_depth +
                   in_channel;
-
                 const float input_value = input_data[input_data_offset];
-                const float filter_value = filter_data[filter_data_offset];
-                total += (input_value * filter_value);
+                if (std::is_same<WeightType, float>::value)
+                {
+                  const float filter_value = filter_data[filter_data_offset];
+                  total += (input_value * filter_value);
+                }
+                else
+                {
+                  const float filter_scale = *weight_scale_ptr;
+                  const float filter_value =
+                    static_cast<float>(filter_data[filter_data_offset]) * filter_scale;
+                  total += input_value * filter_value;
+                }
               }
             }
           }
@@ -105,6 +116,10 @@ OMStatus ConvFloat(const core::FloatConv2D *params, const core::OMRuntimeShape &
 
           output_data[output_data_offset] =
             std::min(std::max(total, output_activation_min), output_activation_max);
+          if (std::is_same<WeightType, int8_t>::value)
+          {
+              weight_scale_ptr++;
+          }
         }
       }
     }

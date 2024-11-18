@@ -125,11 +125,37 @@ OMStatus onert_micro::execute::execute_kernel_CircleConv2D(const OMExecuteArgs &
       if (status != Ok)
         return status;
 
-      status = pal::ConvFloat(&params, input_shape, core::utils::castInputData<float>(input_data),
-                              weight_shape, core::utils::castInputData<float>(weight_data),
-                              core::utils::castInputData<float>(bias_data), output_shape,
-                              core::utils::castOutputData<float>(output_data));
-      assert(status == Ok);
+      switch (weight->type())
+      {
+        case circle::TensorType_FLOAT32:
+        {
+          status =
+            pal::ConvFloat(&params, input_shape, core::utils::castInputData<float>(input_data),
+                           weight_shape, core::utils::castInputData<float>(weight_data),
+                           core::utils::castInputData<float>(bias_data), output_shape,
+                           core::utils::castOutputData<float>(output_data));
+          assert(status == Ok);
+          break;
+        }
+        case circle::TensorType_INT8:
+        {
+          // weight quantized INT8 mode
+          params.weights_scales =
+            reinterpret_cast<const float *>(weight->quantization()->scale()->data());
+          status =
+            pal::ConvFloat(&params, input_shape, core::utils::castInputData<float>(input_data),
+                           weight_shape, core::utils::castInputData<int8_t>(weight_data),
+                           core::utils::castInputData<float>(bias_data), output_shape,
+                           core::utils::castOutputData<float>(output_data));
+          assert(status == Ok);
+          break;
+        }
+
+        default:
+        {
+          return OMStatus::UnsupportedType;
+        }
+      }
     }
     break;
 #endif // DIS_FLOAT
