@@ -70,7 +70,9 @@ onert_micro::import::configure_kernel_CircleDepthwiseConv2D(const OMConfigureArg
   if (status != Ok)
     return status;
 
-  status = utils::checkCondition(input->type() == weight->type());
+  status = utils::checkCondition((input->type() == circle::TensorType_FLOAT32 && weight->type() == circle::TensorType_FLOAT32) ||
+                                 (input->type() == circle::TensorType_FLOAT32 && weight->type() == circle::TensorType_INT8) ||
+                                 (input->type() == circle::TensorType_INT8 && weight->type() == circle::TensorType_INT8));
   if (status != Ok)
     return status;
 
@@ -106,6 +108,7 @@ onert_micro::import::configure_kernel_CircleDepthwiseConv2D(const OMConfigureArg
 
   if (input->type() == circle::TensorType_FLOAT32)
   {
+    // TODO: add check logic for weight quantization
     status = utils::checkCondition(bias == nullptr or input->type() == bias->type());
     return status;
   }

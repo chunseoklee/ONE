@@ -29,86 +29,127 @@ namespace execute
 {
 namespace pal
 {
-template <typename T>
-inline OMStatus
-DepthwiseConv2D(const core::FloatConv2D *params, const core::OMRuntimeShape &input_shape,
-                const T *input_data, const core::OMRuntimeShape &filter_shape, const T *filter_data,
-                const T *bias_data, const core::OMRuntimeShape &output_shape, T *output_data)
-{
-  assert(false && "Not IMPL yet");
-}
-template <>
-inline OMStatus
-DepthwiseConv2D<float>(const core::FloatConv2D *params, const core::OMRuntimeShape &input_shape,
-                       const float *input_data, const core::OMRuntimeShape &filter_shape,
-                       const float *filter_data, const float *bias_data,
-                       const core::OMRuntimeShape &output_shape, float *output_data)
-{
-  const int stride_width = params->stride_w;
-  const int stride_height = params->stride_h;
-  const int dilation_width_factor = params->dilation_width_factor;
-  const int dilation_height_factor = params->dilation_height_factor;
-  const int pad_width = params->pad_w;
-  const int pad_height = params->pad_h;
-  const int depth_multiplier = params->depth_multiplier;
-  const float output_activation_min = params->activation_min;
-  const float output_activation_max = params->activation_max;
 
-  const auto batches = input_shape.dims(0);
-  const int input_height = input_shape.dims(1);
-  const int input_width = input_shape.dims(2);
-  const int input_depth = input_shape.dims(3);
-  const int output_depth = filter_shape.dims(0);
-  const int filter_height = filter_shape.dims(1);
-  const int filter_width = filter_shape.dims(2);
-  const int output_height = output_shape.dims(1);
-  const int output_width = output_shape.dims(2);
-  for (int b = 0; b < batches; ++b)
+template <typename T, typename WeightType> struct DConvImpl
+{
+  static OMStatus run(const core::FloatConv2D *params, const core::OMRuntimeShape &input_shape,
+                      const T *input_data, const core::OMRuntimeShape &filter_shape,
+                      const WeightType *filter_data, const T *bias_data,
+                      const core::OMRuntimeShape &output_shape, T *output_data)
   {
-    for (int out_y = 0; out_y < output_height; ++out_y)
+    assert(false && "Not Supported Type in DepthwiseConv");
+    return OMStatus::UnsupportedType;
+  }
+};
+
+template <typename T, typename WeightType>
+inline OMStatus DepthwiseConv2D(const core::FloatConv2D *params,
+                                const core::OMRuntimeShape &input_shape, const T *input_data,
+                                const core::OMRuntimeShape &filter_shape,
+                                const WeightType *filter_data, const T *bias_data,
+                                const core::OMRuntimeShape &output_shape, T *output_data)
+{
+  return DConvImpl<T, WeightType>::run(params, input_shape, input_data, filter_shape, filter_data,
+                                       bias_data, output_shape, output_data);
+}
+
+// Thus function supports the types for :
+// F32 Activation + INT8 Weight
+// F32 Activation + F32 Weight
+template <typename WeightType> struct DConvImpl<float, WeightType>
+{
+  static OMStatus run(const core::FloatConv2D *params, const core::OMRuntimeShape &input_shape,
+                      const float *input_data, const core::OMRuntimeShape &filter_shape,
+                      const WeightType *filter_data, const float *bias_data,
+                      const core::OMRuntimeShape &output_shape, float *output_data)
+  {
+    const int stride_width = params->stride_w;
+    const int stride_height = params->stride_h;
+    const int dilation_width_factor = params->dilation_width_factor;
+    const int dilation_height_factor = params->dilation_height_factor;
+    const int pad_width = params->pad_w;
+    const int pad_height = params->pad_h;
+    const int depth_multiplier = params->depth_multiplier;
+    const float output_activation_min = params->activation_min;
+    const float output_activation_max = params->activation_max;
+
+    const auto batches = input_shape.dims(0);
+    const int input_height = input_shape.dims(1);
+    const int input_width = input_shape.dims(2);
+    const int input_depth = input_shape.dims(3);
+    const int output_depth = filter_shape.dims(0);
+    const int filter_height = filter_shape.dims(1);
+    const int filter_width = filter_shape.dims(2);
+    const int output_height = output_shape.dims(1);
+    const int output_width = output_shape.dims(2);
+    for (int b = 0; b < batches; ++b)
     {
-      for (int out_x = 0; out_x < output_width; ++out_x)
+      for (int out_y = 0; out_y < output_height; ++out_y)
       {
-        for (int ic = 0; ic < input_depth; ++ic)
+        for (int out_x = 0; out_x < output_width; ++out_x)
         {
-          for (int m = 0; m < depth_multiplier; m++)
+          const float *weight_scale_ptr = params->weights_scales;
+          for (int ic = 0; ic < input_depth; ++ic)
           {
-            const int oc = m + ic * depth_multiplier;
-            const int in_x_origin = (out_x * stride_width) - pad_width;
-            const int in_y_origin = (out_y * stride_height) - pad_height;
-            float total = 0.f;
-            for (int filter_y = 0; filter_y < filter_height; ++filter_y)
+            for (int m = 0; m < depth_multiplier; m++)
             {
-              for (int filter_x = 0; filter_x < filter_width; ++filter_x)
+              const int oc = m + ic * depth_multiplier;
+              const int in_x_origin = (out_x * stride_width) - pad_width;
+              const int in_y_origin = (out_y * stride_height) - pad_height;
+              float total = 0.f;
+              for (int filter_y = 0; filter_y < filter_height; ++filter_y)
               {
-                const int in_x = in_x_origin + dilation_width_factor * filter_x;
-                const int in_y = in_y_origin + dilation_height_factor * filter_y;
-                // If the location is outside the bounds of the input image,
-                // use zero as a default value.
-                if ((in_x >= 0) && (in_x < input_width) && (in_y >= 0) && (in_y < input_height))
+                for (int filter_x = 0; filter_x < filter_width; ++filter_x)
                 {
-                  float input_value = input_data[offset(input_shape.dimsData(), b, in_y, in_x, ic)];
-                  float filter_value =
-                    filter_data[offset(filter_shape.dimsData(), 0, filter_y, filter_x, oc)];
-                  total += (input_value * filter_value);
+                  const int in_x = in_x_origin + dilation_width_factor * filter_x;
+                  const int in_y = in_y_origin + dilation_height_factor * filter_y;
+                  // If the location is outside the bounds of the input image,
+                  // use zero as a default value.
+                  if ((in_x >= 0) && (in_x < input_width) && (in_y >= 0) && (in_y < input_height))
+                  {
+                    if (std::is_same<WeightType, float>::value)
+                    {
+
+                      float input_value =
+                        input_data[offset(input_shape.dimsData(), b, in_y, in_x, ic)];
+                      float filter_value =
+                        filter_data[offset(filter_shape.dimsData(), 0, filter_y, filter_x, oc)];
+                      total += (input_value * filter_value);
+                    }
+                    else
+                    {
+                      float input_value =
+                        input_data[offset(input_shape.dimsData(), b, in_y, in_x, ic)];
+                      const int filter_data_offset =
+                        offset(filter_shape.dimsData(), 0, filter_y, filter_x, oc);
+                      const float filter_scale = *weight_scale_ptr;
+                      const float filter_value =
+                        static_cast<float>(filter_data[filter_data_offset]) * filter_scale;
+                      total += input_value * filter_value;
+                    }
+                  }
                 }
               }
+              float bias_value = 0.0f;
+              if (bias_data)
+              {
+                bias_value = bias_data[oc];
+              }
+              output_data[offset(output_shape.dimsData(), b, out_y, out_x, oc)] =
+                activationFunctionWithMinMax(total + bias_value, output_activation_min,
+                                             output_activation_max);
             }
-            float bias_value = 0.0f;
-            if (bias_data)
+            if (std::is_same<WeightType, int8_t>::value)
             {
-              bias_value = bias_data[oc];
+              weight_scale_ptr++;
             }
-            output_data[offset(output_shape.dimsData(), b, out_y, out_x, oc)] =
-              activationFunctionWithMinMax(total + bias_value, output_activation_min,
-                                           output_activation_max);
           }
         }
       }
     }
+    return Ok;
   }
-  return Ok;
-}
+};
 
 } // namespace pal
 } // namespace execute
