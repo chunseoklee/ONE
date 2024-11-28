@@ -34,6 +34,8 @@ set(OM_PAL_LIB "onert_micro_pal${OM_SUFFIX}")
 set(OM_TRAIN_LIB "onert_micro_train${OM_SUFFIX}")
 #dev name
 set(OM_DEV_LIB "onert_micro_dev${OM_SUFFIX}")
+#runtime module
+#set(OM_RUNTIME_MODULE "onert_micro_runtime_module{OM_SUFFIX}")
 
 message(STATUS "ONERT MICRO BEGIN")
 
@@ -53,7 +55,8 @@ target_link_libraries(${OM_CORE_LIB} PUBLIC ${OM_IMPORT_LIB})
 target_link_libraries(${OM_CORE_LIB} PUBLIC ${OM_EXECUTE_LIB})
 target_link_libraries(${OM_CORE_LIB} PUBLIC ${OM_OPTIMIZE_LIB})
 
-add_library(${OM_INTERPRETER_LIB} STATIC OMInterpreter.cpp)
+#add_library(${OM_RUNTIME_MODULE} STATIC OMRuntimeModule.cpp)
+add_library(${OM_INTERPRETER_LIB} STATIC OMInterpreter.cpp OMRuntimeModule.cpp)
 
 target_include_directories(${OM_INTERPRETER_LIB} PUBLIC "${OM_INCLUDE_DIR}")
 target_link_libraries(${OM_INTERPRETER_LIB} PUBLIC ${OM_CORE_LIB})

@@ -5,7 +5,6 @@ set(SOURCES
         OMRuntimeContext.cpp
         OMRuntimeStorage.cpp
         OMRuntimeGraph.cpp
-        OMRuntimeModule.cpp
         OMUtils.cpp
         OMDataType.cpp
         memory/OMMemoryManager.cpp
