@@ -22,7 +22,12 @@ set(SOURCES
         metrics/SparseCrossEntropyAccuracy.cpp
         train_optimizers/SGD.cpp
         train_optimizers/Adam.cpp
-        )
+        OMTrainingHandler.cpp
+        OMTrainingStorage.cpp
+        OMCheckpointSaver.cpp
+        OMCheckpointLoader.cpp
+        OMTrainingRuntimeModule.cpp
+       )
 
 # Add configure kernels
 macro(REGISTER_TRAIN_KERNEL OPERATOR, NODE)
