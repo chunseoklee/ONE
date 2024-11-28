@@ -43,3 +43,6 @@ externals/
 
 # Intermediate code for runtime build (refer nnfw.spec file's nncc_workspace)
 build/nncc/
+
+# schema_generated.h
+build_micro/onert-micro/gen/circle-generated/circle
