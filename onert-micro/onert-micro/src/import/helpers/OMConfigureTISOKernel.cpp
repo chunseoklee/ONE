@@ -28,8 +28,15 @@ constexpr uint32_t outputTensorIdx = 0;
 
 } // namespace
 
+namespace onert_micro
+{
+namespace import
+{
+namespace helpers
+{
+
 // TISO - Two Inputs Single Output
-OMStatus onert_micro::import::helpers::configure_TISO_kernel(const OMConfigureArgs &config_args)
+OMStatus configure_TISO_kernel(const OMConfigureArgs &config_args)
 {
   OMRuntimeContext &runtime_context = config_args.runtime_context;
   uint16_t op_index = config_args.kernel_index;
@@ -96,3 +103,7 @@ OMStatus onert_micro::import::helpers::configure_TISO_kernel(const OMConfigureAr
 
   return status;
 }
+
+} // namespace helper
+} // namespace import
+} // namespace onert_micro
