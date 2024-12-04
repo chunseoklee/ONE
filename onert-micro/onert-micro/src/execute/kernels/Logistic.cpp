@@ -37,7 +37,12 @@ constexpr uint32_t outputTensorIdx = 0;
 } // namespace
 
 // NOTE: doesnt currently support dynamic shapes
-OMStatus onert_micro::execute::execute_kernel_CircleLogistic(const OMExecuteArgs &execute_args)
+namespace onert_micro
+{
+namespace execute
+{
+
+OMStatus execute_kernel_CircleLogistic(const OMExecuteArgs &execute_args)
 {
   const circle::Tensor *input = nullptr;
   const circle::Tensor *output = nullptr;
@@ -95,4 +100,7 @@ OMStatus onert_micro::execute::execute_kernel_CircleLogistic(const OMExecuteArgs
   }
 
   return status;
+}
+
+}
 }

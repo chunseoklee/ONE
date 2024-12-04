@@ -33,7 +33,12 @@ constexpr uint32_t outputTensorIdx = 0;
 } // namespace
 
 // NOTE: doesnt currently support dynamic shapes
-OMStatus onert_micro::execute::execute_kernel_CircleShape(const OMExecuteArgs &execute_args)
+namespace onert_micro
+{
+namespace execute
+{
+
+OMStatus execute_kernel_CircleShape(const OMExecuteArgs &execute_args)
 {
   core::OMRuntimeContext &runtime_context = execute_args.runtime_context;
   core::OMRuntimeStorage &runtime_storage = execute_args.runtime_storage;
@@ -72,4 +77,7 @@ OMStatus onert_micro::execute::execute_kernel_CircleShape(const OMExecuteArgs &e
   }
 
   return status;
+}
+
+}
 }

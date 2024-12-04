@@ -20,7 +20,12 @@
 using namespace onert_micro;
 using namespace onert_micro::execute;
 
-OMStatus onert_micro::execute::execute_kernel_CircleBatchToSpaceND(
+namespace onert_micro
+{
+namespace execute
+{
+
+OMStatus execute_kernel_CircleBatchToSpaceND(
   const onert_micro::execute::OMExecuteArgs &execute_args)
 {
   auto batch_to_space_float_lambda =
@@ -33,4 +38,7 @@ OMStatus onert_micro::execute::execute_kernel_CircleBatchToSpaceND(
     };
 
   return execute_spaces_batches_nd_common(execute_args, batch_to_space_float_lambda);
+}
+
+}
 }

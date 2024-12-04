@@ -29,8 +29,13 @@ constexpr uint32_t outputTensorIdx = 0;
 
 } // namespace
 
+namespace onert_micro
+{
+namespace execute
+{
+
 // NOTE: doesnt currently support dynamic shapes
-OMStatus onert_micro::execute::execute_math_common(
+OMStatus execute_math_common(
   const OMExecuteArgs &execute_args,
   const std::function<OMStatus(const core::OMRuntimeShape &, const float *,
                                const core::OMRuntimeShape &, float *)> &f_float)
@@ -62,4 +67,7 @@ OMStatus onert_micro::execute::execute_math_common(
   }
 
   return status;
+}
+
+}
 }

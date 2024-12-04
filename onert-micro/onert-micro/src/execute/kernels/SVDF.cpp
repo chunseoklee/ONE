@@ -76,7 +76,12 @@ void prepareQuantParams(core::SVDFQuantParams &params, const circle::Tensor *inp
 
 } // namespace
 
-OMStatus onert_micro::execute::execute_kernel_CircleSVDF(const OMExecuteArgs &execute_args)
+namespace onert_micro
+{
+namespace execute
+{
+
+OMStatus execute_kernel_CircleSVDF(const OMExecuteArgs &execute_args)
 {
   core::OMRuntimeContext &runtime_context = execute_args.runtime_context;
   core::OMRuntimeStorage &runtime_storage = execute_args.runtime_storage;
@@ -218,4 +223,7 @@ OMStatus onert_micro::execute::execute_kernel_CircleSVDF(const OMExecuteArgs &ex
   status = core::memory::OMMemoryManager::deallocateMemory(activation_state_data);
 
   return status;
+}
+
+}
 }

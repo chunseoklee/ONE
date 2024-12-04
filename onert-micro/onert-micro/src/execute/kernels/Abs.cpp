@@ -20,8 +20,13 @@
 using namespace onert_micro;
 using namespace onert_micro::execute;
 
+namespace onert_micro
+{
+namespace execute
+{
+
 // NOTE: doesnt currently support dynamic shapes
-OMStatus onert_micro::execute::execute_kernel_CircleAbs(const OMExecuteArgs &execute_args)
+OMStatus execute_kernel_CircleAbs(const OMExecuteArgs &execute_args)
 {
   auto abs_float_lambda = [](const core::OMRuntimeShape &input_shape, const float *input_data,
                              const core::OMRuntimeShape &output_shape, float *output_data) {
@@ -31,3 +36,7 @@ OMStatus onert_micro::execute::execute_kernel_CircleAbs(const OMExecuteArgs &exe
 
   return execute_math_common(execute_args, abs_float_lambda);
 }
+
+} // namespace execute
+} // namespace onert_micro
+

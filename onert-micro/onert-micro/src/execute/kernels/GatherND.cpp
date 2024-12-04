@@ -31,7 +31,12 @@ using namespace onert_micro::core;
 using namespace onert_micro::execute;
 
 // NOTE: doesn't currently support dynamic shapes
-OMStatus onert_micro::execute::execute_kernel_CircleGatherND(const OMExecuteArgs &execute_args)
+namespace onert_micro
+{
+namespace execute
+{
+
+OMStatus execute_kernel_CircleGatherND(const OMExecuteArgs &execute_args)
 {
 
   uint8_t *input_data;
@@ -67,4 +72,7 @@ OMStatus onert_micro::execute::execute_kernel_CircleGatherND(const OMExecuteArgs
   }
 
   return status;
+}
+
+}
 }

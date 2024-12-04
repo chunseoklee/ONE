@@ -21,7 +21,12 @@ using namespace onert_micro;
 using namespace onert_micro::execute;
 
 // NOTE: doesnt currently support dynamic shapes
-OMStatus onert_micro::execute::execute_kernel_CircleCeil(const OMExecuteArgs &execute_args)
+namespace onert_micro
+{
+namespace execute
+{
+
+OMStatus execute_kernel_CircleCeil(const OMExecuteArgs &execute_args)
 {
   auto ceil_float_lambda = [](const core::OMRuntimeShape &input_shape, const float *input_data,
                               const core::OMRuntimeShape &output_shape, float *output_data) {
@@ -29,4 +34,7 @@ OMStatus onert_micro::execute::execute_kernel_CircleCeil(const OMExecuteArgs &ex
   };
 
   return execute_math_common(execute_args, ceil_float_lambda);
+}
+
+}
 }
