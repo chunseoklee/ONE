@@ -21,6 +21,112 @@
 using namespace onert_micro::execute;
 using namespace onert_micro;
 
+namespace onert_micro
+{
+namespace execute
+{
+
+using KernelExecuteFunc = OMStatus(const OMExecuteArgs &);
+
+#define REGISTER_KERNEL(builtin_operator, name) \
+  OMStatus execute_kernel_Circle##name(const OMExecuteArgs &);
+#include "KernelsToBuild.lst"
+#undef REGISTER_KERNEL
+
+#define REGISTER_CUSTOM_KERNEL(name, string_name) \
+  OMStatus execute_kernel_Circle##name(const OMExecuteArgs &);
+#include "CustomKernelsToBuild.lst"
+#undef REGISTER_CUSTOM_KERNEL
+
+class KernelBuiltinExecuteRegistry
+{
+public:
+  constexpr KernelBuiltinExecuteRegistry() : _operator_execute()
+  {
+#define REGISTER_KERNEL(builtin_operator, name)                                \
+  registerKernelExecute(core::OMBuilderID::BuiltinOperator_##builtin_operator, \
+                        execute_kernel_Circle##name);
+
+#include "KernelsToBuild.lst"
+
+#undef REGISTER_KERNEL
+  }
+
+public:
+  OMStatus getKernelExecuteFunc(core::OMBuilderID builderID, KernelExecuteFunc **execute_func) const
+  {
+    const auto builder_id_opcode = size_t(builderID);
+    assert(builder_id_opcode < size_t(core::OMBuilderID::BuiltinOperatorsSize));
+    if (builder_id_opcode >= size_t(core::OMBuilderID::BuiltinOperatorsSize))
+    {
+      *execute_func = nullptr;
+      return UnknownError;
+    }
+    *execute_func = _operator_execute[builder_id_opcode];
+    return Ok;
+  }
+
+private:
+  constexpr void registerKernelExecute(core::OMBuilderID id, KernelExecuteFunc *func)
+  {
+    assert(size_t(id) < size_t(core::OMBuilderID::BuiltinOperatorsSize));
+    _operator_execute[size_t(id)] = func;
+  }
+
+private:
+  KernelExecuteFunc *_operator_execute[size_t(core::OMBuilderID::BuiltinOperatorsSize)];
+};
+
+class KernelCustomExecuteRegistry
+{
+public:
+  constexpr KernelCustomExecuteRegistry() : _operator_execute()
+  {
+#define REGISTER_CUSTOM_KERNEL(name, string_name) \
+  registerKernelExecute(core::OMBuilderID::CUSTOM_##name, execute_kernel_Circle##name);
+
+#include "CustomKernelsToBuild.lst"
+
+#undef REGISTER_CUSTOM_KERNEL
+  }
+
+public:
+  OMStatus getKernelExecuteFunc(core::OMBuilderID builderID, KernelExecuteFunc **execute_func) const
+  {
+    auto builder_id_opcode = size_t(builderID);
+    if (builder_id_opcode >= size_t(core::OMBuilderID::Size))
+    {
+      *execute_func = nullptr;
+      return UnknownError;
+    }
+    const auto builder_id_offset = size_t(core::OMBuilderID::BuiltinOperatorsSize);
+    builder_id_opcode -= builder_id_offset - 1;
+
+    *execute_func = _operator_execute[builder_id_opcode];
+    return Ok;
+  }
+
+private:
+  constexpr void registerKernelExecute(core::OMBuilderID id, KernelExecuteFunc *func)
+  {
+    auto builder_id_opcode = size_t(id);
+    const auto builder_id_offset = size_t(core::OMBuilderID::BuiltinOperatorsSize);
+    builder_id_opcode = builder_id_opcode - builder_id_offset - 1;
+    _operator_execute[builder_id_opcode] = func;
+  }
+
+private:
+  KernelExecuteFunc *_operator_execute[size_t(core::OMBuilderID::Size) -
+                                       size_t(core::OMBuilderID::BuiltinOperatorsSize) - 1];
+};
+
+// Global constexpr kernel builtin and custom execute
+constexpr KernelBuiltinExecuteRegistry kernel_builtin_execute;
+constexpr KernelCustomExecuteRegistry kernel_custom_execute;
+
+} // namespace execute
+} // namespace onert_micro
+
 OMStatus OMKernelExecute::runForward(OMExecuteArgs &execute_args,
                                      core::memory::OMRuntimeAllocator &allocator)
 {
