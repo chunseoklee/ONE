@@ -19,6 +19,7 @@
 #include "luci/Pass/CanonicalizePass.h"
 #include "luci/Pass/ConvertNCHWToNHWCPass.h"
 #include "luci/Pass/CommonSubExpressionEliminationPass.h"
+#include "luci/Pass/EliminateDeadSubgraphPass.h"
 #include "luci/Pass/ExpandBroadcastConstPass.h"
 #include "luci/Pass/FoldAddV2Pass.h"
 #include "luci/Pass/FoldCastPass.h"
@@ -248,6 +249,11 @@ void CircleOptimizer::optimize(luci::Module *m) const
   if (_options->query(Options::Algorithm::FuseBCQ))
   {
     phase.emplace_back(std::make_unique<FuseBCQPass>());
+  }
+
+  if (_options->query(Options::Algorithm::EliminateDeadSubgraph))
+  {
+    phase.emplace_back(std::make_unique<luci::EliminateDeadSubgraphPass>());
   }
 
   ModuleProgressReporter prog(m, logo::PhaseStrategy::Restart);
