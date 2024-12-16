@@ -306,7 +306,7 @@ int entry(int argc, char **argv)
   option_str_to_enum["fuse_preactivation_batchnorm"] = Algorithms::FusePreActivationBatchNorm;
   option_str_to_enum["fuse_prelu"] = Algorithms::FusePRelu;
   option_str_to_enum["fuse_gelu"] = Algorithms::FuseGelu;
-  option_str_to_enum["remove_deadgraph"] = Algorithms::EliminateDeadSubgraph;
+  option_str_to_enum["remove_deadgraph"] = Algorithms::RemoveDeadGraph;
   option_str_to_enum["fuse_rmsnorm"] = Algorithms::FuseRmsNorm;
   option_str_to_enum["fuse_rope"] = Algorithms::FuseRoPE;
   option_str_to_enum["fuse_rsqrt"] = Algorithms::FuseRsqrt;

@@ -77,7 +77,7 @@ public:
       FuseActivationFunction,
       FusePRelu,
       FuseGelu,
-      EliminateDeadSubgraph,
+      RemoveDeadGraph,
       FuseRsqrt,
       FuseRmsNorm,
       FuseRoPE,

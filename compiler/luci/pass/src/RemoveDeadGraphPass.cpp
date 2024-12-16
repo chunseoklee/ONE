@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "luci/Pass/EliminateDeadSubgraphPass.h"
+#include "luci/Pass/RemoveDeadGraphPass.h"
 
 #include <luci/IR/CircleNodes.h>
 
@@ -91,7 +91,7 @@ void checkGraph(loco::Graph *current_graph, std::deque<size_t> &reachable_graphs
  * Eliminate dead subgraph.
  * Note: dead means inaccessible from the main (with index zero) graph
  **/
-bool EliminateDeadSubgraphPass::run(luci::Module *m)
+bool RemoveDeadGraphPass::run(luci::Module *m)
 {
   bool changed = false;
 

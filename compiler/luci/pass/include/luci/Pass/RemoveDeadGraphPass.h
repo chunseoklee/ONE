@@ -28,9 +28,9 @@ namespace luci
  * @brief  Class to eliminate dead subgraph
  *
  */
-struct EliminateDeadSubgraphPass final : public luci::Pass
+struct RemoveDeadGraphPass final : public luci::Pass
 {
-  const char *name(void) const final { return "luci::EliminateDeadSubgraphPass"; }
+  const char *name(void) const final { return "luci::RemoveDeadGraphPass"; }
 
   bool run(luci::Module *m);
   bool run(loco::Graph *)

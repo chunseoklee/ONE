@@ -1,4 +1,4 @@
-# test for EliminateDeadSubgraphPass
+# test for RemoveDeadGraphPass
 
 operand {
     name: "ifm1"

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "luci/Pass/EliminateDeadSubgraphPass.h"
+#include "luci/Pass/RemoveDeadGraphPass.h"
 #include "luci/IR/CircleNodes.h"
 #include "luci/IR/Module.h"
 
@@ -23,10 +23,10 @@
 namespace
 {
 
-class EliminateDeadSubgraphPassTest : public ::testing::Test
+class RemoveDeadGraphPassTest : public ::testing::Test
 {
 public:
-  EliminateDeadSubgraphPassTest()
+  RemoveDeadGraphPassTest()
   {
     auto main_g = loco::make_graph();
     _main_graph = main_g.get();
@@ -112,9 +112,9 @@ protected:
 
 } // namespace
 
-TEST_F(EliminateDeadSubgraphPassTest, remove_dead_subgraph)
+TEST_F(RemoveDeadGraphPassTest, remove_dead_subgraph)
 {
-  luci::EliminateDeadSubgraphPass pass;
+  luci::RemoveDeadGraphPass pass;
 
   // Before removing dead nodes it is has 4 graphs
   ASSERT_EQ(_module.size(), 4);
@@ -125,9 +125,9 @@ TEST_F(EliminateDeadSubgraphPassTest, remove_dead_subgraph)
   ASSERT_EQ(_module.size(), 3);
 }
 
-TEST_F(EliminateDeadSubgraphPassTest, no_graphs_NEG)
+TEST_F(RemoveDeadGraphPassTest, no_graphs_NEG)
 {
-  luci::EliminateDeadSubgraphPass pass;
+  luci::RemoveDeadGraphPass pass;
   auto m = luci::make_module();
   ASSERT_FALSE(pass.run(m.get()));
 }

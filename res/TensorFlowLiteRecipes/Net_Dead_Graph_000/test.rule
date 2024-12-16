@@ -1,4 +1,4 @@
-# To check whether dead graph is remove after EliminateDeadSubgraphPass
+# To check whether dead graph is remove after RemoveDeadGraphPass
 
 RULE    "VERIFY_FILE_FORMAT"      $(verify_file_format) '=' 1
 
