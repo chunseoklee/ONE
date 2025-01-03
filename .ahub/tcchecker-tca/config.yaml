@@ -551,7 +551,7 @@ test:
     testCaseLanguage: CPP
     testFW: GTEST
     testCaseFolder:
-      - /onert-micro
+      - /onert-micro/onert-micro
 
     testFile:
       - extension: test.cpp
