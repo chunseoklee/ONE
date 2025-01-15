@@ -49,6 +49,20 @@ void DumpOperators::run(std::ostream &os, const circle::Model *model, const std:
 
 } // namespace circleinspect
 
+namespace circleinspect
+{
+
+void DumpNumSubgraphs::run(std::ostream &os, const circle::Model *model, const std::vector<char> *data)
+{
+  mio::circle::Reader reader(model, data);
+
+  const uint32_t subgraph_size = reader.num_subgraph();
+
+  os << subgraph_size << std::endl;
+}
+
+} // namespace circleinspect
+
 namespace
 {
 

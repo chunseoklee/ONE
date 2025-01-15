@@ -31,6 +31,7 @@ int entry(int argc, char **argv)
   arser::Arser arser{
     "circle-inspect allows users to retrieve various information from a Circle model file"};
   arser.add_argument("--operators").nargs(0).help("Dump operators in circle file");
+  arser.add_argument("--num_subgraphs").nargs(0).help("Dump the number of subgraphs in circle file");
   arser.add_argument("--conv2d_weight")
     .nargs(0)
     .help("Dump Conv2D series weight operators in circle file");
@@ -52,7 +53,8 @@ int entry(int argc, char **argv)
   }
 
   if (!arser["--operators"] && !arser["--conv2d_weight"] && !arser["--op_version"] &&
-      !arser["--tensor_dtype"] && !arser["--constants"] && !arser["--tensor_shape"])
+      !arser["--tensor_dtype"] && !arser["--constants"] && !arser["--tensor_shape"] &&
+      !arser["--num_subgraphs"])
   {
     std::cout << "At least one option must be specified" << std::endl;
     std::cout << arser;
@@ -63,6 +65,8 @@ int entry(int argc, char **argv)
 
   if (arser["--operators"])
     dumps.push_back(std::make_unique<circleinspect::DumpOperators>());
+  if (arser["--num_subgraphs"])
+    dumps.push_back(std::make_unique<circleinspect::DumpNumSubgraphs>());
   if (arser["--conv2d_weight"])
     dumps.push_back(std::make_unique<circleinspect::DumpConv2DWeight>());
   if (arser["--op_version"])

@@ -169,6 +169,19 @@ op_count()
   echo ${ACTUAL}
 }
 
+subgraph_count()
+{
+  file_path_check ${COMPILED_FILE}
+  file_path_check ${INSPECT_PROG_PATH}
+
+  set -o pipefail
+
+  ACTUAL=`init_error_log ; ${INSPECT_PROG_PATH} --num_subgraphs ${COMPILED_FILE}`
+  check_success_exit_code $? 0
+
+  echo ${ACTUAL}
+}
+
 conv2d_weight_not_constant()
 {
   file_path_check ${COMPILED_FILE}

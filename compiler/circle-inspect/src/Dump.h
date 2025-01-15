@@ -42,6 +42,15 @@ public:
   void run(std::ostream &os, const circle::Model *model, const std::vector<char> *data);
 };
 
+class DumpNumSubgraphs final : public DumpInterface
+{
+public:
+  DumpNumSubgraphs() = default;
+
+public:
+  void run(std::ostream &os, const circle::Model *model, const std::vector<char> *data);
+};
+
 class DumpConv2DWeight final : public DumpInterface
 {
 public:
