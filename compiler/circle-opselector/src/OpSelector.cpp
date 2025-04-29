@@ -325,7 +325,7 @@ OpSelector::select_by<SelectType::ID>(const std::vector<std::string> &comma_toke
     }
   }
 
-  loco::Graph *graph = _module->graph(0);
+  loco::Graph *graph = _module->graph(1);
   std::vector<const luci::CircleNode *> selected_nodes;
 
   for (auto node : loco::all_nodes(graph))
@@ -356,7 +356,7 @@ template <>
 std::vector<const luci::CircleNode *>
 OpSelector::select_by<SelectType::NAME>(const std::vector<std::string> &tokens)
 {
-  loco::Graph *graph = _module->graph(0);
+  loco::Graph *graph = _module->graph(1);
   std::vector<const luci::CircleNode *> selected_nodes;
 
   for (auto node : loco::all_nodes(graph))
