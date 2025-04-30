@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2018 Samsung Electronics Co., Ltd. All Rights Reserved
 #
@@ -1483,7 +1483,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('-g',
                             '--subgraph',
                             type=int,
-                            default=0,
+                            default=1,
                             help="subgraph to use (default: 0)")
     arg_parser.add_argument('-s',
                             '--store-io-info',
