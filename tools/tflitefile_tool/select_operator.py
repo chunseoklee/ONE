@@ -18,6 +18,7 @@ import os
 import sys
 import numpy
 import flatbuffers
+import tflite.BuiltinOptions
 import tflite.Model
 import tflite.SubGraph
 import tflite.BuiltinOptions
@@ -986,6 +987,24 @@ def GenerateBuiltinOption(new_builder, selected_builtin_option, builtin_option_t
         tflite.WhileOptions.WhileOptionsAddCondSubgraphIndex(
             new_builder, used_subgraphs_dic[while_option.CondSubgraphIndex()])
         return tflite.WhileOptions.WhileOptionsEnd(new_builder)
+
+    import tflite.SelectV2Options
+    if builtin_option_type == tflite.BuiltinOptions.BuiltinOptions().SelectV2Options:
+        
+        selectv2_option = tflite.SelectV2Options.SelectV2Options()
+        selectv2_option.Init(selected_builtin_option.Bytes, selected_builtin_option.Pos)
+        
+        tflite.SelectV2Options.SelectV2OptionsStart(new_builder)
+        return tflite.SelectV2Options.SelectV2OptionsEnd(new_builder)
+
+    import tflite.StableHLOCompositeOptions
+    if builtin_option_type == tflite.BuiltinOptions.BuiltinOptions().StableHLOCompositeOptions:
+        
+        selectv2_option = tflite.StableHLOCompositeOptions.StableHLOCompositeOptions()
+        selectv2_option.Init(selected_builtin_option.Bytes, selected_builtin_option.Pos)
+        
+        tflite.StableHLOCompositeOptions.StableHLOCompositeOptionsStart(new_builder)
+        return tflite.StableHLOCompositeOptions.StableHLOCompositeOptionsEnd(new_builder)
 
     # Cannot handle builtin option type yet
     print("Cannot handle BuiltinOptions {} yet. See BuiltinOptions.py for op name".format(
