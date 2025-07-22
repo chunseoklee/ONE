@@ -32,9 +32,10 @@ namespace
 constexpr int padKernelMaxDimensionCount = 5;
 } // namespace
 
+template <typename T>
 OMStatus Pad(const core::PadParams &op_params, const core::OMRuntimeShape &input_shape,
-             const float *input_data, const float pad_value,
-             const core::OMRuntimeShape &output_shape, float *output_data)
+             const T *input_data, const T pad_value,
+             const core::OMRuntimeShape &output_shape, T *output_data)
 {
   // Runtime calls are currently fixed at 5 dimensions. Copy inputs so we can
   // pad them to 5 dims (yes, we are "padding the padding").
@@ -78,8 +79,8 @@ OMStatus Pad(const core::PadParams &op_params, const core::OMRuntimeShape &input
   const int right_w_padding = right_padding_copy[3];
   const int right_d_padding = right_padding_copy[4];
 
-  const float *in_ptr = input_data;
-  float *out_ptr = output_data;
+  const T *in_ptr = input_data;
+  T *out_ptr = output_data;
   for (int out_b = 0; out_b < output_batch; ++out_b)
   {
     for (int out_p = 0; out_p < output_plane; ++out_p)

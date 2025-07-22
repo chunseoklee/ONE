@@ -122,6 +122,15 @@ OMStatus execute_kernel_CirclePad(const OMExecuteArgs &execute_args)
     }
     break;
 #endif // DIS_FLOAT
+#ifndef DIS_QUANT
+    case circle::TensorType_INT8:
+    {
+      int8_t pad_value = input3_data == nullptr ? 0 : *reinterpret_cast<int8_t *>(input3_data[0]);
+      status = pal::Pad(pad_params, input1_shape, core::utils::castInputData<int8_t>(input1_data),
+                        pad_value, output_shape, core::utils::castOutputData<int8_t>(output_data));
+    }
+    break;
+#endif // DIS_QUANT
     default:
     {
       status = UnsupportedType;
