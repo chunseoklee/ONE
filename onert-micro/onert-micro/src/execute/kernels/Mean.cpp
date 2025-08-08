@@ -72,23 +72,7 @@ OMStatus execute_kernel_CircleMean(const OMExecuteArgs &execute_args)
 #ifndef DIS_FLOAT
     case circle::TensorType_FLOAT32:
     {
-      // Special case mean implementation exists for 4D mean across axes 1
-      // and 2.
-      const int *axis_value = core::utils::castInputData<int>(axis_data);
-      bool special_case_4d_axes_1_and_2 =
-        input_shape.dimensionsCount() == 4 && axis_shape.flatSize() == 2 &&
-        ((axis_value[0] == 1 && axis_value[1] == 2) || (axis_value[0] == 2 && axis_value[1] == 1));
-
-      if (special_case_4d_axes_1_and_2)
-      {
-        onert_micro::execute::pal::MeanROWH(
-          input_shape, core::utils::castInputData<float>(input_data), output_shape,
-          core::utils::castOutputData<float>(output_data));
-      }
-      else
-      {
-        return impl::CircleMean<float>(runtime_kernel);
-      }
+      return impl::CircleMean<float>(runtime_kernel);
     }
     break;
 #endif // DIS_FLOAT
@@ -105,3 +89,6 @@ OMStatus execute_kernel_CircleMean(const OMExecuteArgs &execute_args)
       return UnsupportedType;
   }
 }
+
+} 
+} 
