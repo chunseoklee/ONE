@@ -19,38 +19,47 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
     
     # Iterate through each subgraph
     for i in range(model.SubgraphsLength()):
-        subgraph = model.Subgraphs(i)
         subgraphT = modelT.subgraphs[i]
         
         # Iterate through each operator in the subgraph
-        for j in range(subgraph.OperatorsLength()):
-            operator = subgraph.Operators(j)
+        olength = len(subgraphT.operators)
+        j=0
+        while j < olength:
+            print("index: ", j)
             operatorT = subgraphT.operators[j]
-            
+            opcode_index = operatorT.opcodeIndex
+            operator_code = model.OperatorCodes(opcode_index)
+            print(opcode_index, operator_code.BuiltinCode())
+            operatorT = subgraphT.operators[j]
+            if operator_code.BuiltinCode() == 114 : # 114 -> QUANTIZE FIXME: FC->QUANTIZE pattern
+               del subgraphT.operators[j]
+               if len(subgraphT.operators) == j: # j was the last op, thus stop iteration
+                   print(f'{j} is the last op')
+                   break
+               #j = j + 1
+               continue
             # Process input tensors
-            for k in range(operator.InputsLength()):
-                tensor_idx = operator.Inputs(k)
+            for k in range(len(operatorT.inputs)):
+                tensor_idx = operatorT.inputs[k]
                 if tensor_idx != -1:  # Skip optional inputs
-                    tensor = subgraph.Tensors(tensor_idx)
                     tensorT = subgraphT.tensors[tensor_idx]
-                    if not "weight" in str(tensor.Name()) :
+                    if not "weight" in str(tensorT.name) :
                         tensorT.type = 0 # 0 is FLOAT32
                     else :
                         buffer_idx = tensorT.buffer
-                        modelT.buffers[buffer_idx] = BufferT()
+                        modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
+                                                               # It works anyway.
 
             # Process output tensors
-            for k in range(operator.OutputsLength()):
-                tensor_idx = operator.Outputs(k)
-
-                tensor = subgraph.Tensors(tensor_idx)
+            for k in range(len(operatorT.outputs)):
+                tensor_idx = operatorT.outputs[k]
                 tensorT = subgraphT.tensors[tensor_idx]
-                if not "weight" in str(tensor.Name()):
-                    tensorT.type = 0
+                tensorT.type = 0
 
+            j = j + 1 # normal index update routine
 
     builder = flatbuffers.Builder(0)
-    builder.Finish(modelT.Pack(builder))
+    builder.Finish(modelT.Pack(builder), "CIR0".encode())
 
     # write new model to output file
     with open(output_model_path, 'wb') as f:
