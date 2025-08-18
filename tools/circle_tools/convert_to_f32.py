@@ -31,13 +31,29 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
             operator_code = model.OperatorCodes(opcode_index)
             print(opcode_index, operator_code.BuiltinCode())
             operatorT = subgraphT.operators[j]
+
+
+            # Process output tensors because of weight removal
+            for k in range(len(operatorT.outputs)):
+                tensor_idx = operatorT.outputs[k]
+                tensorT = subgraphT.tensors[tensor_idx]
+                tensorT.type = 0
+
+
+
             if operator_code.BuiltinCode() == 114 : # 114 -> QUANTIZE FIXME: FC->QUANTIZE pattern
+               quant_output_index = operatorT.outputs[0]
+               FCT = subgraphT.operators[j-1]
+               FCT.outputs = [ quant_output_index ]
                del subgraphT.operators[j]
                if len(subgraphT.operators) == j: # j was the last op, thus stop iteration
                    print(f'{j} is the last op')
                    break
                #j = j + 1
                continue
+
+
+
             # Process input tensors
             for k in range(len(operatorT.inputs)):
                 tensor_idx = operatorT.inputs[k]
@@ -49,12 +65,6 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
                         buffer_idx = tensorT.buffer
                         modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
                                                                # It works anyway.
-
-            # Process output tensors
-            for k in range(len(operatorT.outputs)):
-                tensor_idx = operatorT.outputs[k]
-                tensorT = subgraphT.tensors[tensor_idx]
-                tensorT.type = 0
 
             j = j + 1 # normal index update routine
 
