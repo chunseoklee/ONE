@@ -25,11 +25,9 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
         olength = len(subgraphT.operators)
         j=0
         while j < olength:
-            print("index: ", j)
             operatorT = subgraphT.operators[j]
             opcode_index = operatorT.opcodeIndex
             operator_code = model.OperatorCodes(opcode_index)
-            print(opcode_index, operator_code.BuiltinCode())
             operatorT = subgraphT.operators[j]
 
 
@@ -59,10 +57,11 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
                 tensor_idx = operatorT.inputs[k]
                 if tensor_idx != -1:  # Skip optional inputs
                     tensorT = subgraphT.tensors[tensor_idx]
+                    buffer_idx = tensorT.buffer
                     if not "weight" in str(tensorT.name) :
-                        tensorT.type = 0 # 0 is FLOAT32
+                        if type(modelT.buffers[buffer_idx].data) == None: # NonConst Buffer
+                            tensorT.type = 0 # 0 is FLOAT32
                     else :
-                        buffer_idx = tensorT.buffer
                         modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
                                                                # It works anyway.
 
