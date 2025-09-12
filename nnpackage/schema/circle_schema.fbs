@@ -87,6 +87,12 @@ enum TensorType : byte {
   // MX dtypes
   MXFP4 = -6,
   MXINT8 = -7,
+
+  // TRIX quantization type
+  // W: weigth bit size, A: activation bit size
+  TRIX_W4A8 = -8,
+  TRIX_W8A8 = -9,
+  TRIX_W8A16 = -10,
 }
 
 // Custom quantization parameters for experimenting with new quantization
