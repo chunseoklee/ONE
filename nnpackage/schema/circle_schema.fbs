@@ -107,10 +107,18 @@ table MXQuantization {
   axis:int;
 }
 
+table TRIXQuantization {
+  in_ch_stride:int;
+  input_scale:float;
+  input_zp:int;
+  offset:[int];
+}
+
 // Represents a specific quantization technique's parameters.
 union QuantizationDetails {
   CustomQuantization,
   MXQuantization,
+  TRIXQuantization,
 }
 
 // Parameters for converting a quantized tensor back to float.
