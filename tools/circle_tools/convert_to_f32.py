@@ -24,7 +24,7 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
         # Iterate through each operator in the subgraph
         olength = len(subgraphT.operators)
         j=0
-        while j < olength:
+        while j < len(subgraphT.operators):
             operatorT = subgraphT.operators[j]
             opcode_index = operatorT.opcodeIndex
             operator_code = model.OperatorCodes(opcode_index)
