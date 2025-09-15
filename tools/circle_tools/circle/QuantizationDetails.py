@@ -6,6 +6,7 @@ class QuantizationDetails(object):
     NONE = 0
     CustomQuantization = 1
     MXQuantization = 2
+    TRIXQuantization = 3
 
 def QuantizationDetailsCreator(unionType, table):
     from flatbuffers.table import Table
@@ -17,4 +18,7 @@ def QuantizationDetailsCreator(unionType, table):
     if unionType == QuantizationDetails().MXQuantization:
         import circle.MXQuantization
         return circle.MXQuantization.MXQuantizationT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == QuantizationDetails().TRIXQuantization:
+        import circle.TRIXQuantization
+        return circle.TRIXQuantization.TRIXQuantizationT.InitFromBuf(table.Bytes, table.Pos)
     return None
