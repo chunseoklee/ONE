@@ -241,6 +241,7 @@ def End(builder):
 import circle.CustomQuantization
 import circle.MXQuantization
 import circle.QuantizationDetails
+import circle.TRIXQuantization
 try:
     from typing import List, Union
 except:
@@ -255,7 +256,7 @@ class QuantizationParametersT(object):
         self.scale = None  # type: List[float]
         self.zeroPoint = None  # type: List[int]
         self.detailsType = 0  # type: int
-        self.details = None  # type: Union[None, circle.CustomQuantization.CustomQuantizationT, circle.MXQuantization.MXQuantizationT]
+        self.details = None  # type: Union[None, circle.CustomQuantization.CustomQuantizationT, circle.MXQuantization.MXQuantizationT, circle.TRIXQuantization.TRIXQuantizationT]
         self.quantizedDimension = 0  # type: int
 
     @classmethod
