@@ -30,7 +30,24 @@ class EventFormatWriter
 public:
   EventFormatWriter(const std::string &filepath) : _os{filepath, std::ofstream::out} {}
   virtual ~EventFormatWriter()
-  { /* empty */
+  {
+    try
+    {
+      // std::ofstream _os destructor will be called here.
+      // This try-catch block is to prevent any exceptions (e.g., std::bad_cast)
+      // thrown by _os's destructor from propagating, as this destructor
+      // is implicitly noexcept.
+    }
+    catch (const std::exception &e)
+    {
+      // Report the error and suppress the exception to prevent std::terminate().
+      std::cerr << "Error in EventFormatWriter destructor: " << e.what() << std::endl;
+    }
+    catch (...)
+    {
+      // Report an unknown error and suppress the exception.
+      std::cerr << "Unknown error in EventFormatWriter destructor." << std::endl;
+    }
   }
 
   virtual void flush(const std::vector<std::unique_ptr<EventRecorder>> &) = 0;
