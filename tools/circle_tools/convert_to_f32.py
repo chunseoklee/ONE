@@ -14,6 +14,7 @@ from circle.Buffer import Buffer, BufferT
 from circle.SubGraph import SubGraph, SubGraphT
 from circle.Operator import Operator, OperatorT
 from circle.TensorType import TensorType
+from circle.BuiltinOperator import BuiltinOperator
 
 # Import ModelT from the local circle directory
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'circle'))
@@ -50,10 +51,11 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
                 tensor_idx = operatorT.outputs[k]
                 tensorT = subgraphT.tensors[tensor_idx]
                 tensorT.type = TensorType.FLOAT32
+                # TODO: remove quant info from F32 Tensor
 
 
 
-            if operator_code.BuiltinCode() == 114 : # 114 -> QUANTIZE FIXME: FC->QUANTIZE pattern
+            if operator_code.BuiltinCode() == BuiltinOperator.QUANTIZE :
                quant_output_index = operatorT.outputs[0]
                FCT = subgraphT.operators[j-1]
                FCT.outputs = [ quant_output_index ]
@@ -75,10 +77,12 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
                     if not "weight" in str(tensorT.name) :
                         if type(modelT.buffers[buffer_idx].data) == None: # NonConst Buffer
                             tensorT.type = TensorType.FLOAT32
+                            # TODO: remove quant info from F32 Tensor
                     else :
-                        modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
-                                                               # It works anyway.
-                        tensorT.type = TensorType.TRIX_W4A8 
+                        if operator_code.BuiltinCode() == BuiltinOperator.FULLY_CONNECTED:
+                            modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
+                                                                   # It works anyway.
+                            tensorT.type = TensorType.TRIX_W4A8
 
             j = j + 1 # normal index update routine
 
