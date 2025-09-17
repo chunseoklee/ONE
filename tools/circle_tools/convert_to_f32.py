@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
 import flatbuffers
-from circle.Model import Model, ModelT
+import sys
+import os
+
+# Add the current working directory to sys.path to find the circle package
+current_dir = os.getcwd()
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+from circle.Model import Model
 from circle.Tensor import Tensor, TensorT
 from circle.Buffer import Buffer, BufferT
 from circle.SubGraph import SubGraph, SubGraphT
 from circle.Operator import Operator, OperatorT
+from circle.TensorType import TensorType
+
+# Import ModelT from the local circle directory
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'circle'))
+from Model import ModelT
+
 
 def convert_operator_io_to_f32(input_model_path, output_model_path):
     # Load the model
@@ -35,7 +49,7 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
             for k in range(len(operatorT.outputs)):
                 tensor_idx = operatorT.outputs[k]
                 tensorT = subgraphT.tensors[tensor_idx]
-                tensorT.type = 0
+                tensorT.type = TensorType.FLOAT32
 
 
 
@@ -60,10 +74,11 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
                     buffer_idx = tensorT.buffer
                     if not "weight" in str(tensorT.name) :
                         if type(modelT.buffers[buffer_idx].data) == None: # NonConst Buffer
-                            tensorT.type = 0 # 0 is FLOAT32
+                            tensorT.type = TensorType.FLOAT32
                     else :
                         modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
                                                                # It works anyway.
+                        tensorT.type = TensorType.TRIX_W4A8 
 
             j = j + 1 # normal index update routine
 
