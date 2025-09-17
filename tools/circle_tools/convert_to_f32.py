@@ -15,10 +15,73 @@ from circle.SubGraph import SubGraph, SubGraphT
 from circle.Operator import Operator, OperatorT
 from circle.TensorType import TensorType
 from circle.BuiltinOperator import BuiltinOperator
+from circle.QuantizationParameters import QuantizationParameters, QuantizationParametersT
+from circle.QuantizationDetails import QuantizationDetails
+from circle.TRIXQuantization import TRIXQuantization, TRIXQuantizationT
 
 # Import ModelT from the local circle directory
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'circle'))
 from Model import ModelT
+
+
+def insert_input_qparam_into_weight(operatorT, subgraphT):
+    # Get the first input tensor (activation tensor)
+    input_tensor_idx = operatorT.inputs[0]
+    if input_tensor_idx == -1:
+        print(f"  Warning: First input is optional (-1), skipping")
+        return
+
+    input_tensorT = subgraphT.tensors[input_tensor_idx]
+
+    # Get the weight tensor (second input)
+    weight_tensor_idx = operatorT.inputs[1]
+    if weight_tensor_idx == -1:
+        print(f"  Warning: Weight tensor is optional (-1), skipping")
+        return
+
+    weight_tensorT = subgraphT.tensors[weight_tensor_idx]
+
+    # Check if input tensor has quantization parameters
+    if input_tensorT.quantization is None:
+        print(f"  Warning: Input tensor has no quantization parameters, skipping")
+        return
+
+    # Extract quantization parameters from input tensor
+    input_quant = input_tensorT.quantization
+
+    # Get scale and zero point from input tensor
+    if (input_quant.scale is None or len(input_quant.scale) == 0 or
+        input_quant.zeroPoint is None or len(input_quant.zeroPoint) == 0):
+        print(f"  Warning: Input tensor has no scale or zero point, skipping")
+        return
+
+    input_scale = input_quant.scale[0]  # Use the first scale value
+    input_zero_point = input_quant.zeroPoint[0]  # Use the first zero point value
+
+    print(f"  Input tensor quantization: scale={input_scale}, zero_point={input_zero_point}")
+
+    # Create TRIXQuantization object
+    trix_quant = TRIXQuantizationT()
+    trix_quant.inputScale = float(input_scale)
+    trix_quant.inputZp = int(input_zero_point)
+    trix_quant.inChStride = 0  # Default value, may need to be calculated based on tensor shape
+    trix_quant.offset = None  # Not used in this case
+
+    # Update weight tensor's quantization parameters
+    if weight_tensorT.quantization is None:
+        # Create new quantization parameters for weight tensor
+        weight_quant = QuantizationParametersT()
+        weight_quant.detailsType = QuantizationDetails.TRIXQuantization
+        weight_quant.details = trix_quant
+        weight_quant.quantizedDimension = 0  # Default value
+        weight_tensorT.quantization = weight_quant
+    else:
+        # Update existing quantization parameters
+        weight_quant = weight_tensorT.quantization
+        weight_quant.detailsType = QuantizationDetails.TRIXQuantization
+        weight_quant.details = trix_quant
+
+    print(f"  Updated weight tensor with TRIXQuantization")
 
 
 def convert_operator_io_to_f32(input_model_path, output_model_path):
@@ -83,6 +146,7 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
                             modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
                                                                    # It works anyway.
                             tensorT.type = TensorType.TRIX_W4A8
+                            insert_input_qparam_into_weight(operatorT, subgraphT)
 
             j = j + 1 # normal index update routine
 
