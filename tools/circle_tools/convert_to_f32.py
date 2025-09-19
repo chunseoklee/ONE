@@ -146,6 +146,7 @@ def convert_operator_io_to_f32(input_model_path, output_model_path):
                             modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
                                                                    # It works anyway.
                             tensorT.type = TensorType.TRIX_W4A8
+                            print(f"  Weight tensor {tensorT.name} is in processing")
                             insert_input_qparam_into_weight(operatorT, subgraphT)
 
             j = j + 1 # normal index update routine
