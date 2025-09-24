@@ -216,7 +216,21 @@ def convert_operator_io_to_f32(input_model_path, output_model_path, yml_path):
                             logger.weight(f"Processing weight tensor: {tensorT.name}")
                             modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
                                                                    # It works anyway.
-                            tensorT.type = TensorType.TRIX_W4A8
+                            # TODO: this logic cover all TensorType ?
+                            input_idx = operatorT.inputs[0]
+                            input_tensorT = subgraphT.tensors[input_idx]
+                            logger.debug(f"input type is {input_tensorT.type} and weight type is {tensorT.type}")
+                            if tensorT.type == TensorType.UINT4:
+                                tensorT.type = TensorType.TRIX_W4A8
+                            elif input_tensorT.type == TensorType.INT16:
+                                tensorT.type = TensorType.TRIX_W8A16
+                            elif input_tensorT.type == TensorType.UINT8 and tensorT.type == TensorType.UINT8:
+                                tensorT.type = TensorType.TRIX_W8A8
+                            else: # no support
+                                logger.error("We exit since not supported tensor type")
+                                exit(-1);
+
+
                             # step1. input quant param
                             insert_input_qparam_into_weight(operatorT, subgraphT)
                             # step2. offset parameter + input ch tiling stride
