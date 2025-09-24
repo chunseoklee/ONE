@@ -84,7 +84,7 @@ def verify_trix_quantization(model_path):
                                 print(f"      TRIXQuantization inputScale: {trix_quant.inputScale}")
                                 print(f"      TRIXQuantization inputZp: {trix_quant.inputZp}")
                                 print(f"      TRIXQuantization inChStride: {trix_quant.inChStride}")
-                                if trix_quant.offset:
+                                if trix_quant.offset.any():
                                     print(f"      TRIXQuantization offset: {trix_quant.offset}")
                         else:
                             print(f"    ✗ Weight tensor does not have TRIXQuantization (detailsType: {weight_quant.detailsType})")
