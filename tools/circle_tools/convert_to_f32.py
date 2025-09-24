@@ -63,7 +63,11 @@ def insert_input_oparam_into_weight(operatorT, subgraphT, offset_result):
             logger.success(f"Found matching tensor with key: {k}")
             trix_quant.inChStride = v
 
-
+    for k,v in offset_result["offset_result"].items():
+        logger.debug(f"Checking key: {k}")
+        if str(k).find(str(tensor_name)) != -1: # matching tensor name
+            logger.success(f"Found matching tensor with key: {k}")
+            trix_quant.offset = v
 
 def insert_input_qparam_into_weight(operatorT, subgraphT):
     logger.process("Inserting input quantization parameters into weight tensor")
