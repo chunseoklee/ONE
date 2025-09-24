@@ -83,20 +83,21 @@ def extract_offsets(yaml_file_path, output_prefix=None, min_ch_size_default=32):
                     new_key = key
 
             # Sanitize key for use in filename (replace slashes with underscores)
-            new_key = new_key.replace('/', '_').replace('\\', '_')
+            #new_key = new_key.replace('/', '_').replace('\\', '_')
+            new_key = key
             offset_result[new_key] = [item['mem_offset'] for item in tiles]
             inch_stride_result[new_key] = in_tile_size
 
     # Write output files
-    for k, v in offset_result.items():
-        print(f'key: {k}, nelements: {len(v)}')
-        with open(f'{output_prefix}.{k}.op.bin', 'wb') as f:
-            f.write(struct.pack(f"{len(v)}I", *v))
+    # for k, v in offset_result.items():
+    #     print(f'key: {k}, nelements: {len(v)}')
+    #     with open(f'{output_prefix}.{k}.op.bin', 'wb') as f:
+    #         f.write(struct.pack(f"{len(v)}I", *v))
 
-    for k, v in inch_stride_result.items():
-        print(f'in channel tile size: {v}')
-        with open(f'{output_prefix}.{k}.ics.bin', 'wb') as f:
-            f.write(struct.pack("<I", v))
+    # for k, v in inch_stride_result.items():
+    #     print(f'in channel tile size: {v}')
+    #     with open(f'{output_prefix}.{k}.ics.bin', 'wb') as f:
+    #         f.write(struct.pack("<I", v))
 
     return {
         'offset_result': offset_result,
