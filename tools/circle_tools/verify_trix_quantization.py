@@ -59,6 +59,7 @@ def verify_trix_quantization(model_path):
                     input_tensorT = subgraphT.tensors[input_tensor_idx]
                     logger.info(f"    Input tensor index: {input_tensor_idx}")
                     logger.info(f"    Input tensor name: {input_tensorT.name}")
+                    logger.info(f"    Input tensor type: {input_tensorT.type}")
                     
                     if input_tensorT.quantization:
                         input_quant = input_tensorT.quantization
@@ -73,6 +74,7 @@ def verify_trix_quantization(model_path):
                     weight_tensorT = subgraphT.tensors[weight_tensor_idx]
                     logger.info(f"    Weight tensor index: {weight_tensor_idx}")
                     logger.info(f"    Weight tensor name: {weight_tensorT.name}")
+                    logger.info(f"    Weight tensor type: {weight_tensorT.type}")
                     
                     if weight_tensorT.quantization:
                         weight_quant = weight_tensorT.quantization
@@ -92,6 +94,17 @@ def verify_trix_quantization(model_path):
                             logger.error(f"    ✗ Weight tensor does not have TRIXQuantization (detailsType: {weight_quant.detailsType})")
                     else:
                         logger.error(f"    ✗ Weight tensor has no quantization parameters")
+                # Get the bias tensor (third input) if present
+                if len(operatorT.inputs) > 2:
+                    bias_tensor_idx = operatorT.inputs[2]
+                    if bias_tensor_idx != -1:
+                        bias_tensorT = subgraphT.tensors[bias_tensor_idx]
+                        logger.info(f"    Bias tensor index: {bias_tensor_idx}")
+                        logger.info(f"    Bias tensor name: {bias_tensorT.name}")
+                        logger.info(f"    Bias tensor type: {bias_tensorT.type()}")
+                        if bias_tensorT.quantization:
+                            bias_quant = bias_tensorT.quantization
+                            logger.info(f"    Bias tensor has quantization parameters")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
