@@ -57,12 +57,14 @@ def insert_input_oparam_into_weight(operatorT, subgraphT, offset_result):
     tensor_name = str(tensor_name)[2:-1] # remove b'' from name
     logger.tensor(f"Processing tensor: {tensor_name}")
 
+    logger.process("Generate TRIXQuantization\'s in_ch_stride")
     for k,v in offset_result["inch_stride_result"].items():
         logger.debug(f"Checking key: {k}")
         if str(k).find(str(tensor_name)) != -1: # matching tensor name
             logger.success(f"Found matching tensor with key: {k}")
             trix_quant.inChStride = v
 
+    logger.process("Generate TRIXQuantization\'s offset")
     for k,v in offset_result["offset_result"].items():
         logger.debug(f"Checking key: {k}")
         if str(k).find(str(tensor_name)) != -1: # matching tensor name
