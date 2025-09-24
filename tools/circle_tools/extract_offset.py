@@ -5,6 +5,8 @@ import struct
 import sys
 import copy
 import os
+from beautiful_logger import BeautifulLogger
+logger = BeautifulLogger()
 
 
 def split_tiles(tiles, min_ch_size):
@@ -51,7 +53,7 @@ def extract_offsets(yaml_file_path, output_prefix=None, min_ch_size_default=32):
 
     for key in data.keys():
         if "MatMul" in key:
-            print(f'Generating oparam for {key}')
+            logger.info(f'Generating oparam for {key}')
             matmul_type = data[key]['Type']
             if matmul_type == 'NConvW8A16':
                 min_ch_size = 16
@@ -59,7 +61,7 @@ def extract_offsets(yaml_file_path, output_prefix=None, min_ch_size_default=32):
                 min_ch_size = min_ch_size_default
 
             tiles = data[key]['Tiles']
-            print(f'# of Tile is {len(tiles)}')
+            logger.info(f'# of Tile is {len(tiles)}')
 
             in_tile_size = tiles[0]['shape']['D']
             for i in range(min(5, len(tiles))):
@@ -108,7 +110,7 @@ def extract_offsets(yaml_file_path, output_prefix=None, min_ch_size_default=32):
 def main():
     """Command-line interface for extract_offsets"""
     if len(sys.argv) < 2:
-        print("Usage: python extract_offset.py <yaml_file_path> [output_prefix] [min_ch_size_default]")
+        logger.error("Usage: python extract_offset.py <yaml_file_path> [output_prefix] [min_ch_size_default]")
         sys.exit(1)
 
     yaml_file_path = sys.argv[1]
@@ -116,10 +118,11 @@ def main():
     min_ch_size_default = int(sys.argv[3]) if len(sys.argv) > 3 else 32
 
     bname = os.path.basename(yaml_file_path)
-    print(bname)
+    logger.info(bname)
 
     result = extract_offsets(yaml_file_path, output_prefix, min_ch_size_default)
-
+    logger.box("Offset Results", {k: (v[:10] if isinstance(v, (list, tuple)) else v) for k, v in list(result["offset_result"].items())[:10]} if isinstance(result["offset_result"], dict) else result["offset_result"])
+    logger.box("Input Channel Stride Results", {k: (v[:10] if isinstance(v, (list, tuple)) else v) for k, v in list(result["inch_stride_result"].items())[:10]} if isinstance(result["inch_stride_result"], dict) else result["inch_stride_result"])
     return result
 
 
