@@ -55,7 +55,7 @@ def insert_input_oparam_into_weight(operatorT, subgraphT, offset_result):
     tensorT = subgraphT.tensors[tensor_idx]
     tensor_name = tensorT.name
     tensor_name = str(tensor_name)[2:-1] # remove b'' from name
-    logger.tensor(f"Processing tensor: {tensor_name}")
+    logger.tensor(f"Processing tensor name: {tensor_name}, idx: {tensor_idx}")
 
     logger.process("Generate TRIXQuantization\'s in_ch_stride")
     for k,v in offset_result["inch_stride_result"].items():
