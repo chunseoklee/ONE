@@ -169,7 +169,6 @@ def convert_operator_io_to_f32(input_model_path, output_model_path, yml_path):
         logger.info(f"Processing {total_operators} operator(s) in subgraph {i+1}")
         
         j=0
-        weight_key = ""
         while j < len(subgraphT.operators):
             # Show progress for operators
             logger.progress(j+1, total_operators, f"Subgraph {i+1} Operators")
@@ -183,11 +182,9 @@ def convert_operator_io_to_f32(input_model_path, output_model_path, yml_path):
             for k in range(len(operatorT.outputs)):
                 tensor_idx = operatorT.outputs[k]
                 tensorT = subgraphT.tensors[tensor_idx]
-                tensorT.type = TensorType.FLOAT32
+                #tensorT.type = TensorType.FLOAT32
+                tensorT.type = tensorT.type
                 # TODO: remove quant info from F32 Tensor
-                if operator_code.BuiltinCode() == BuiltinOperator.FULLY_CONNECTED:
-                    logger.tensor(f"FC layer output tensor name: {str(tensorT.name)}")
-                    weight_key = tensorT.name
 
             if operator_code.BuiltinCode() == BuiltinOperator.QUANTIZE :
                logger.operator("Processing QUANTIZE operator - removing and connecting previous operator")
@@ -209,7 +206,8 @@ def convert_operator_io_to_f32(input_model_path, output_model_path, yml_path):
                     buffer_idx = tensorT.buffer
                     if not "weight" in str(tensorT.name) :
                         if type(modelT.buffers[buffer_idx].data) == None: # NonConst Buffer
-                            tensorT.type = TensorType.FLOAT32
+                            #tensorT.type = TensorType.FLOAT32
+                            tensorT.type = tensorT.type
                             # TODO: remove quant info from F32 Tensor
                     else :
                         if operator_code.BuiltinCode() == BuiltinOperator.FULLY_CONNECTED:
