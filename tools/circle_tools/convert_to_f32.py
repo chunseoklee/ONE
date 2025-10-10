@@ -218,9 +218,9 @@ def convert_operator_io_to_f32(input_model_path, output_model_path, yml_path):
                             input_idx = operatorT.inputs[0]
                             input_tensorT = subgraphT.tensors[input_idx]
                             logger.debug(f"input type is {input_tensorT.type} and weight type is {tensorT.type}")
-                            if tensorT.type == TensorType.UINT4:
+                            if tensorT.type == TensorType.UINT4 and input_tensorT.type == TensorType.UINT8:
                                 tensorT.type = TensorType.TRIX_W4A8
-                            elif input_tensorT.type == TensorType.INT16:
+                            elif input_tensorT.type == TensorType.INT16 and tensorT.type == TensorType.UINT8:
                                 tensorT.type = TensorType.TRIX_W8A16
                             elif input_tensorT.type == TensorType.UINT8 and tensorT.type == TensorType.UINT8:
                                 tensorT.type = TensorType.TRIX_W8A8
