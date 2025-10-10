@@ -178,14 +178,6 @@ def convert_fc_weight_to_triv(input_model_path, output_model_path, yml_path):
             operator_code = model.OperatorCodes(opcode_index)
             operatorT = subgraphT.operators[j]
 
-            # Process output tensors because of weight removal
-            for k in range(len(operatorT.outputs)):
-                tensor_idx = operatorT.outputs[k]
-                tensorT = subgraphT.tensors[tensor_idx]
-                #tensorT.type = TensorType.FLOAT32
-                tensorT.type = tensorT.type
-                # TODO: remove quant info from F32 Tensor
-
             if operator_code.BuiltinCode() == BuiltinOperator.QUANTIZE :
                logger.operator("Processing QUANTIZE operator - removing and connecting previous operator")
                quant_output_index = operatorT.outputs[0]
@@ -204,12 +196,8 @@ def convert_fc_weight_to_triv(input_model_path, output_model_path, yml_path):
                 if tensor_idx != -1:  # Skip optional inputs
                     tensorT = subgraphT.tensors[tensor_idx]
                     buffer_idx = tensorT.buffer
-                    if not "weight" in str(tensorT.name) :
-                        if type(modelT.buffers[buffer_idx].data) == None: # NonConst Buffer
-                            #tensorT.type = TensorType.FLOAT32
-                            tensorT.type = tensorT.type
-                            # TODO: remove quant info from F32 Tensor
-                    else :
+
+                    if "weight" in str(tensorT.name) :
                         if operator_code.BuiltinCode() == BuiltinOperator.FULLY_CONNECTED:
                             logger.weight(f"Processing weight tensor: {tensorT.name}")
                             modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
