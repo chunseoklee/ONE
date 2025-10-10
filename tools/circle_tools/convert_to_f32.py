@@ -133,7 +133,7 @@ def insert_input_qparam_into_weight(operatorT, subgraphT):
     logger.success("Updated weight tensor with TRIXQuantization")
 
 
-def convert_operator_io_to_f32(input_model_path, output_model_path, yml_path):
+def convert_fc_weight_to_triv(input_model_path, output_model_path, yml_path):
     logger.start(f"Starting model conversion: {input_model_path} -> {output_model_path}")
     
     # Let's extract offset and input ch tiling size from yaml(internal/encoded_weight_alloc_info.yml)
@@ -249,6 +249,80 @@ def convert_operator_io_to_f32(input_model_path, output_model_path, yml_path):
     
     logger.complete(f"Model conversion completed successfully: {output_model_path}")
 
+
+def convert_io_to_f32(input_model_path, output_model_path, yml_path):
+    logger.start(f"Starting model IO conversion: {input_model_path} -> {output_model_path}")
+
+
+    # Load the model
+    logger.info(f"Loading model from: {input_model_path}")
+    with open(input_model_path, 'rb') as f:
+        buf = f.read()
+
+    model = Model.GetRootAs(buf, 0)
+    modelT = ModelT.InitFromObj(model)
+    logger.success("Model loaded successfully")
+
+    # Create a new builder to modify the model
+    builder = flatbuffers.Builder(1024)
+
+    # Iterate through each subgraph
+    total_subgraphs = model.SubgraphsLength()
+    logger.info(f"Processing {total_subgraphs} subgraph(s)")
+
+    for i in range(total_subgraphs):
+        logger.info(f"Processing subgraph {i+1}/{total_subgraphs}")
+        subgraphT = modelT.subgraphs[i]
+
+        # Iterate through each operator in the subgraph
+        total_operators = len(subgraphT.operators)
+        logger.info(f"Processing {total_operators} operator(s) in subgraph {i+1}")
+
+        j=0
+        while j < len(subgraphT.operators):
+            # Show progress for operators
+            logger.progress(j+1, total_operators, f"Subgraph {i+1} Operators")
+
+            operatorT = subgraphT.operators[j]
+            opcode_index = operatorT.opcodeIndex
+            operator_code = model.OperatorCodes(opcode_index)
+            operatorT = subgraphT.operators[j]
+
+            # Process output tensors because of weight removal
+            for k in range(len(operatorT.outputs)):
+                tensor_idx = operatorT.outputs[k]
+                tensorT = subgraphT.tensors[tensor_idx]
+                tensorT.type = TensorType.FLOAT32
+                # TODO: remove quant info from F32 Tensor
+
+            # Process input tensors
+            for k in range(len(operatorT.inputs)):
+                tensor_idx = operatorT.inputs[k]
+                if tensor_idx != -1:  # Skip optional inputs
+                    tensorT = subgraphT.tensors[tensor_idx]
+                    buffer_idx = tensorT.buffer
+                    if not "weight" in str(tensorT.name) :
+                        if modelT.buffers[buffer_idx].data is None: # NonConst Buffer
+                            logger.debug(f"convert non-weight tensor : {str(tensorT.name)} into F32")
+                            tensorT.type = TensorType.FLOAT32
+                            # TODO: remove quant info from F32 Tensor
+
+            j = j + 1 # normal index update routine
+
+        logger.success(f"Completed IO processing subgraph {i+1}")
+
+    logger.info("Building final model")
+    builder = flatbuffers.Builder(0)
+    builder.Finish(modelT.Pack(builder), "CIR0".encode())
+
+    # write new model to output file
+    logger.info(f"Writing converted model to: {output_model_path}")
+    with open(output_model_path, 'wb') as f:
+        f.write(builder.Output())  # For now just save original buffer
+
+    logger.complete(f"Model conversion completed successfully: {output_model_path}")
+
+
 if __name__ == "__main__":
     import sys
 
@@ -270,7 +344,8 @@ if __name__ == "__main__":
     logger.separator()
     
     try:
-        convert_operator_io_to_f32(input_path, output_path, yml_path)
+        convert_fc_weight_to_triv(input_path, output_path, yml_path)
+        convert_io_to_f32(output_path, output_path, yml_path)
     except Exception as e:
         logger.error(f"Model conversion failed: {str(e)}")
         sys.exit(1)
