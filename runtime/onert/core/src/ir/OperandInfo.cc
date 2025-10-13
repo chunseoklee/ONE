@@ -28,6 +28,10 @@ size_t OperandInfo::total_size() const
   }
   catch (const std::runtime_error &e)
   {
+    // FIXME: This is workaround for trix weight sahring scheme.
+    if (data_type == DataType::QUANT_TRIX_W4A8 || data_type == DataType::QUANT_TRIX_W8A8 || data_type == DataType::QUANT_TRIX_W8A16)
+      return 4;
+
     // Calculate total size for ggml block quantization type on exception handling
     // because it is rare case and we should care about performance on non-block case.
     if (data_type != DataType::QUANT_GGML_Q4_0 && data_type != DataType::QUANT_GGML_Q8_0)
