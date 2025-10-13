@@ -202,6 +202,8 @@ def convert_fc_weight_to_triv(input_model_path, output_model_path, yml_path):
                             logger.weight(f"Processing weight tensor: {tensorT.name}")
                             modelT.buffers[buffer_idx] = BufferT() # FIXME: Is this valid to purge buffer
                                                                    # It works anyway.
+                            modelT.buffers[buffer_idx].data = [ 1, 1 , 0, 1] # FIXME: workaround to bypass onert's null-data error
+
                             # TODO: this logic cover all TensorType ?
                             input_idx = operatorT.inputs[0]
                             input_tensorT = subgraphT.tensors[input_idx]
