@@ -85,6 +85,10 @@ bool requireQuantParam(DataType data_type)
     case DataType::QUANT_GGML_Q8_0:
       // Quantize type, but no quantization parameter
       return false;
+    case DataType::QUANT_TRIX_W4A8:
+    case DataType::QUANT_TRIX_W8A8:
+    case DataType::QUANT_TRIX_W8A16:
+      return true;
     default:
       throw std::runtime_error{"Unsupported type"};
   }
