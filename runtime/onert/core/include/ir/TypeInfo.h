@@ -47,6 +47,21 @@ struct Quantization
   std::vector<int32_t> zero_points = {0};
 };
 
+/**
+ * @brief Struct to hold TRIX quantization information of a tensor
+ *
+ * @note  This struct is used only for TRIX quantized tensors.
+ *        TRIX quantization is used for specialized quantization schemes like
+ *        TRIX_W4A8, TRIX_W8A8, TRIX_W8A16.
+ */
+struct TRIXQuantization
+{
+  int32_t in_ch_stride = 0;
+  float input_scale = 0.0f;
+  int32_t input_zp = 0;
+  std::vector<int32_t> offset;
+};
+
 class TypeInfo
 {
 public:
@@ -66,6 +81,8 @@ public:
   int32_t zero_point() const { return _quant.zero_points[0]; }
   const std::vector<int32_t> &zero_points() const { return _quant.zero_points; }
   const ir::Sparsity *sparsity() const { return _sparsity.get(); }
+  bool hasTRIXQuantization() const { return _trix_quantization != nullptr; }
+  const ir::TRIXQuantization *trixQuantization() const { return _trix_quantization.get(); }
   void quantization(float scale, int32_t zero_point)
   {
     assert(requireQuantParam(_type) || scale == 0); // Quantize param type, or scale = 0
@@ -86,14 +103,47 @@ public:
     _quant.zero_points = std::move(zero_points);
   }
   void sparsity(std::shared_ptr<ir::Sparsity> sparsity) { _sparsity = std::move(sparsity); }
+  void trixQuantization(std::unique_ptr<ir::TRIXQuantization> trix_quantization) { _trix_quantization = std::move(trix_quantization); }
 
 public:
   void type(const DataType type) { _type = type; }
+
+  // Copy constructor
+  TypeInfo(const TypeInfo &other)
+    : _type(other._type), _quant(other._quant), _sparsity(other._sparsity)
+  {
+    if (other._trix_quantization != nullptr)
+    {
+      _trix_quantization = std::make_unique<ir::TRIXQuantization>(*other._trix_quantization);
+    }
+  }
+
+  // Copy assignment operator
+  TypeInfo &operator=(const TypeInfo &other)
+  {
+    if (this != &other)
+    {
+      _type = other._type;
+      _quant = other._quant;
+      _sparsity = other._sparsity;
+      
+      if (other._trix_quantization != nullptr)
+      {
+        _trix_quantization = std::make_unique<ir::TRIXQuantization>(*other._trix_quantization);
+      }
+      else
+      {
+        _trix_quantization.reset();
+      }
+    }
+    return *this;
+  }
 
 private:
   DataType _type;
   ir::Quantization _quant;
   std::shared_ptr<ir::Sparsity> _sparsity;
+  std::unique_ptr<ir::TRIXQuantization> _trix_quantization;
 };
 
 bool operator==(const TypeInfo &lhs, const TypeInfo &rhs);

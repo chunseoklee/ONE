@@ -151,7 +151,22 @@ void loadQuantization(const Tensor *tensor, ir::TypeInfo &typeInfo) override
   if (trix_quantization != nullptr)
   {
     // load TRIXQuantization
-    std::cerr << "trix quanti loading\n";
+    auto trix_q = std::make_unique<ir::TRIXQuantization>();
+    trix_q->in_ch_stride = trix_quantization->in_ch_stride();
+    trix_q->input_scale = trix_quantization->input_scale();
+    trix_q->input_zp = trix_quantization->input_zp();
+    
+    if (trix_quantization->offset() != nullptr)
+    {
+      const auto offset_size = trix_quantization->offset()->size();
+      trix_q->offset.resize(offset_size);
+      for (flatbuffers::uoffset_t i = 0; i < offset_size; ++i)
+      {
+        trix_q->offset[i] = trix_quantization->offset()->Get(i);
+      }
+    }
+    
+    typeInfo.trixQuantization(std::move(trix_q));
   }
   typeInfo.quantization(std::move(scales), std::move(zero_points));
 }
