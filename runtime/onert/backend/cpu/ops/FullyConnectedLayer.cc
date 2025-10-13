@@ -267,6 +267,14 @@ void FullyConnectedLayer::run()
   {
     fullyConnectedGGMLWeight();
   }
+  else if (_weights->data_type() == OperandType::QUANT_TRIX_W4A8 ||
+           _weights->data_type() == OperandType::QUANT_TRIX_W8A8 ||
+           _weights->data_type() == OperandType::QUANT_TRIX_W8A16 )
+  {
+    // TODO: implement this
+    std::cerr << "executing trix weight shanring FC" << std::endl;
+    //fullyConnectediWeightShare();
+  }
   else if (_input->data_type() == OperandType::FLOAT32)
   {
     _is_shuffled16x1float32 ? fullyConnected16x1Float32() : fullyConnectedFloat32();
