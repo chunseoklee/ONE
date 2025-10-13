@@ -100,6 +100,12 @@ protected:
       return ir::DataType::QUANT_GGML_Q4_0;
     if (type == TensorType::TensorType_GGML_Q8_0)
       return ir::DataType::QUANT_GGML_Q8_0;
+    if (type == TensorType::TensorType_TRIX_W4A8)
+      return ir::DataType::QUANT_TRIX_W4A8;
+    if (type == TensorType::TensorType_TRIX_W8A8)
+      return ir::DataType::QUANT_TRIX_W8A8;
+    if (type == TensorType::TensorType_TRIX_W8A16)
+      return ir::DataType::QUANT_TRIX_W8A16;
 
     return BaseLoader::tensorTypeToDataType(type);
   }
