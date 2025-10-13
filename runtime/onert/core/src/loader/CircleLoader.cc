@@ -94,6 +94,69 @@ public:
   }
 
 protected:
+
+void loadQuantization(const Tensor *tensor, ir::TypeInfo &typeInfo) override
+{
+  auto q_params = tensor->quantization();
+
+  // Type validation
+  // INT16 should be symmetric quantized
+  if (tensor->type() == TensorType::TensorType_INT16)
+  {
+    if (q_params->zero_point() != nullptr && q_params->zero_point()->size() != 0)
+    {
+      auto zero_points = q_params->zero_point();
+      for (uint32_t i = 0; i < zero_points->size(); i++)
+      {
+        if (zero_points->Get(i) != 0)
+          throw std::runtime_error(
+            "Quantization param: int16 should be symmetric, but zero_point is not zero.");
+      }
+    }
+  }
+
+  if (q_params == nullptr || q_params->scale() == nullptr || q_params->scale()->size() == 0)
+  {
+    typeInfo.quantization(0., 0);
+    return;
+  }
+  if (q_params->zero_point() == nullptr)
+  {
+    throw std::runtime_error("Quantization params: scale is not null, but zero_point is null.");
+  }
+  const size_t num_scales = q_params->scale()->size();
+  if (num_scales != q_params->zero_point()->size())
+  {
+    throw std::runtime_error("Quantization params: scale size != zero_point size");
+  }
+  std::vector<float> scales;
+  std::vector<int32_t> zero_points;
+  scales.resize(num_scales);
+  zero_points.resize(num_scales);
+  for (size_t i = 0; i < num_scales; ++i)
+  {
+    scales[i] = q_params->scale()->Get(i);
+    // zero_point is defined as long (i64) in schema while TypeInfo's zero_point is int32_t.
+    // int64_t is used instead of long because long is 4 byte in most 32bit architecture.
+    int64_t zero_point = q_params->zero_point()->Get(i);
+    if (zero_point < std::numeric_limits<int32_t>::min() ||
+        zero_point > std::numeric_limits<int32_t>::max())
+      throw std::runtime_error("Zero_point is out of int32 range.");
+    zero_points[i] = static_cast<int32_t>(zero_point);
+  }
+  auto details = q_params->details_as_CustomQuantization();
+  if (details != nullptr)
+    throw std::runtime_error("Custom Quantization is not supported");
+  auto trix_quantization = q_params->details_as_TRIXQuantization();
+  if (trix_quantization != nullptr)
+  {
+    // load TRIXQuantization
+    std::cerr << "trix quanti loading\n";
+  }
+  typeInfo.quantization(std::move(scales), std::move(zero_points));
+}
+
+
   ir::DataType tensorTypeToDataType(const TensorType type) override
   {
     if (type == TensorType::TensorType_GGML_Q4_0)

@@ -97,7 +97,7 @@ protected:
 
   // Create operands form tflite::Tensor
   ir::OperandIndex loadOperand(const Tensor *tensor, ir::Graph &subg);
-  void loadQuantization(const Tensor *tensor, ir::TypeInfo &typeInfo);
+  virtual void loadQuantization(const Tensor *tensor, ir::TypeInfo &typeInfo);
   void loadSparsity(const Tensor *tensor, ir::TypeInfo &typeInfo);
   void loadOperationIO(const Operator *op, ir::OperandIndexSequence &inputs,
                        ir::OperandIndexSequence &outputs);
