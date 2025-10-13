@@ -38,7 +38,10 @@ enum class DataType
   QUANT_INT8_SYMM_PER_CHANNEL = 11,
   QUANT_INT16_SYMM = 12,
   QUANT_GGML_Q4_0 = 13, // 4bit quantization, 32 block, 16bit delta
-  QUANT_GGML_Q8_0 = 14  // 8bit quantization, 32 block, 16bit delta
+  QUANT_GGML_Q8_0 = 14, // 8bit quantization, 32 block, 16bit delta
+  QUANT_TRIX_W4A8 = 15, // TRIX quant with 4bit Weight, 8bit Act
+  QUANT_TRIX_W8A16 = 16, // TRIX quant with 8bit Weight, 16bit Act
+  QUANT_TRIX_W8A8 = 17,  // TRIX quant with 8bit Weight, 8bit Act
 };
 
 size_t sizeOfDataType(DataType data_type);
