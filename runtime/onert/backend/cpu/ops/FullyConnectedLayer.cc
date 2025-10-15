@@ -146,6 +146,40 @@ void FullyConnectedLayer::fullyConnectedHybrid()
 #endif
 }
 
+void FullyConnectedLayer::fullyConnectediWeightShare()
+{
+  // This function will be implemented for TRIX quantization weight sharing
+  // For now, just output a message to indicate it's being called
+  std::cerr << "executing trix weight sharing FC" << std::endl;
+  
+  // TODO: Implement actual TRIX weight sharing logic
+  // This would typically involve:
+  // 1. Using the TRIXQuantization parameters stored in temp_arena
+  // 2. Implementing the specific weight sharing algorithm
+  // 3. Calling appropriate cker functions with TRIX-specific parameters
+
+  nnfw::cker::FCTempArena &temp_arena = *_temp_arena;
+  if (!temp_arena.prepared)
+  {
+    temp_arena.prepare(getShape(_input), getShape(_weights));
+  }
+
+  // Set TRIXQuantization information in temp_arena if available
+  if (_weights->hasTRIXQuantization())
+  {
+    const auto &trix_quant = *_weights->trixQuantization();
+    temp_arena.in_ch_stride = trix_quant.in_ch_stride;
+    temp_arena.input_scale = trix_quant.input_scale;
+    temp_arena.input_zp = trix_quant.input_zp;
+    temp_arena.offset = trix_quant.offset;
+  }
+
+  nnfw::cker::FullyConnectedParams op_params;
+  op_params.activation = convertActivationType(_activation);
+  op_params.weights_scale = _weights->data_scale();
+
+}
+
 void FullyConnectedLayer::fullyConnectedSparseWeight()
 {
   nnfw::cker::FullyConnectedParams op_params;
@@ -271,9 +305,8 @@ void FullyConnectedLayer::run()
            _weights->data_type() == OperandType::QUANT_TRIX_W8A8 ||
            _weights->data_type() == OperandType::QUANT_TRIX_W8A16 )
   {
-    // TODO: implement this
-    std::cerr << "executing trix weight shanring FC" << std::endl;
-    //fullyConnectediWeightShare();
+    // For TRIX quantization, we should use weight sharing path
+    fullyConnectediWeightShare();
   }
   else if (_input->data_type() == OperandType::FLOAT32)
   {

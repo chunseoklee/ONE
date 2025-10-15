@@ -57,6 +57,11 @@ public:
   std::vector<int8_t> input_quantized;
   std::vector<float> scaling_factors;
   std::vector<int32_t> accum_scratch;
+  // TRIXQuantization information
+  int32_t in_ch_stride = 0;
+  float input_scale = 0.0f;
+  int32_t input_zp = 0;
+  std::vector<int32_t> offset;
 };
 
 #if defined(CKER_X86_PLATFORM)
