@@ -148,15 +148,10 @@ void FullyConnectedLayer::fullyConnectedHybrid()
 
 void FullyConnectedLayer::fullyConnectediWeightShare()
 {
-  // This function will be implemented for TRIX quantization weight sharing
-  // For now, just output a message to indicate it's being called
-  std::cerr << "executing trix weight sharing FC" << std::endl;
-  
   // TODO: Implement actual TRIX weight sharing logic
   // This would typically involve:
-  // 1. Using the TRIXQuantization parameters stored in temp_arena
-  // 2. Implementing the specific weight sharing algorithm
-  // 3. Calling appropriate cker functions with TRIX-specific parameters
+  // 1. TRIXQuantization parameters stored in temp_arena
+  // 2. Calling appropriate cker functions with TRIX-specific parameters
 
   nnfw::cker::FCTempArena &temp_arena = *_temp_arena;
   if (!temp_arena.prepared)
@@ -164,14 +159,63 @@ void FullyConnectedLayer::fullyConnectediWeightShare()
     temp_arena.prepare(getShape(_input), getShape(_weights));
   }
 
-  // Set TRIXQuantization information in temp_arena if available
-  if (_weights->hasTRIXQuantization())
+  // Set TRIXQuantization information in temp_arena
+  const auto &trix_quant = *_weights->get_info().typeInfo().trixQuantization();
+  temp_arena.in_ch_stride = trix_quant.in_ch_stride;
+  temp_arena.input_scale = trix_quant.input_scale;
+  temp_arena.input_zp = trix_quant.input_zp;
+  temp_arena.offset = trix_quant.offset;
+
+  // Print FCTempArena contents for debugging
+  std::cerr << "FCTempArena contents:" << std::endl;
+  std::cerr << "  prepared: " << temp_arena.prepared << std::endl;
+  std::cerr << "  input_quantized size: " << temp_arena.input_quantized.size() << std::endl;
+  std::cerr << "  scaling_factors size: " << temp_arena.scaling_factors.size() << std::endl;
+  std::cerr << "  accum_scratch size: " << temp_arena.accum_scratch.size() << std::endl;
+  std::cerr << "  in_ch_stride: " << temp_arena.in_ch_stride << std::endl;
+  std::cerr << "  input_scale: " << temp_arena.input_scale << std::endl;
+  std::cerr << "  input_zp: " << temp_arena.input_zp << std::endl;
+  std::cerr << "  offset size: " << temp_arena.offset.size() << std::endl;
+  
+  // Print first few elements of vectors for debugging
+  if (!temp_arena.input_quantized.empty())
   {
-    const auto &trix_quant = *_weights->trixQuantization();
-    temp_arena.in_ch_stride = trix_quant.in_ch_stride;
-    temp_arena.input_scale = trix_quant.input_scale;
-    temp_arena.input_zp = trix_quant.input_zp;
-    temp_arena.offset = trix_quant.offset;
+    std::cerr << "  input_quantized (first 5 elements): ";
+    for (size_t i = 0; i < std::min(5ul, temp_arena.input_quantized.size()); ++i)
+    {
+      std::cerr << static_cast<int>(temp_arena.input_quantized[i]) << " ";
+    }
+    std::cerr << std::endl;
+  }
+  
+  if (!temp_arena.scaling_factors.empty())
+  {
+    std::cerr << "  scaling_factors (first 5 elements): ";
+    for (size_t i = 0; i < std::min(5ul, temp_arena.scaling_factors.size()); ++i)
+    {
+      std::cerr << temp_arena.scaling_factors[i] << " ";
+    }
+    std::cerr << std::endl;
+  }
+  
+  if (!temp_arena.accum_scratch.empty())
+  {
+    std::cerr << "  accum_scratch (first 5 elements): ";
+    for (size_t i = 0; i < std::min(5ul, temp_arena.accum_scratch.size()); ++i)
+    {
+      std::cerr << temp_arena.accum_scratch[i] << " ";
+    }
+    std::cerr << std::endl;
+  }
+  
+  if (!temp_arena.offset.empty())
+  {
+    std::cerr << "  offset (first 5 elements): ";
+    for (size_t i = 0; i < std::min(5ul, temp_arena.offset.size()); ++i)
+    {
+      std::cerr << temp_arena.offset[i] << " ";
+    }
+    std::cerr << std::endl;
   }
 
   nnfw::cker::FullyConnectedParams op_params;

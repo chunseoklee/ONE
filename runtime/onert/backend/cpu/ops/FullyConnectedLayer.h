@@ -50,6 +50,8 @@ public:
 
   void fullyConnected16x1Float32();
 
+  void fullyConnectediWeightShare();
+
   void configure(const IPortableTensor *input, const IPortableTensor *weights,
                  const IPortableTensor *bias, ir::Activation activation,
                  ir::FullyConnectedWeightsFormat weights_format, IPortableTensor *output,
