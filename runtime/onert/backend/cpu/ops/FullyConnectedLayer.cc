@@ -22,6 +22,7 @@
 #include <cker/operation/FullyConnected.h>
 #include <cker/TensorUtils.h>
 #include <misc/polymorphic_downcast.h>
+#include <fstream>
 
 namespace onert::backend::cpu::ops
 {
@@ -161,14 +162,52 @@ void FullyConnectedLayer::fullyConnectediWeightShare()
 
   // Set TRIXQuantization information in temp_arena
   const auto &trix_quant = *_weights->get_info().typeInfo().trixQuantization();
-  temp_arena.in_ch_stride = trix_quant.in_ch_stride;
-  temp_arena.input_scale = trix_quant.input_scale;
-  temp_arena.input_zp = trix_quant.input_zp;
-  temp_arena.offset = trix_quant.offset;
-
+ 
   nnfw::cker::FullyConnectedParams op_params;
   op_params.activation = convertActivationType(_activation);
   op_params.weights_scale = _weights->data_scale();
+
+  // weight scales and zero_points
+  const auto *filter_per_channel_scales = _weights->data_scales().data();
+  const auto num_scales = _weights->data_scales().size();
+  const auto *filter_per_channel_zp = _weights->data_zero_points().data();
+  const auto num_zps = _weights->data_zero_points().size();
+  
+  // Suppress unused variable warnings
+  (void)num_scales;
+  (void)num_zps;
+  
+  // Here, we load by myself weight segment ptr of TVN and pass to cker function.
+  // TODO: logic to provide weight segment ptr from outside
+  const long target_position = 39712;
+  std::ifstream file("model.tvn", std::ios::binary | std::ios::ate);
+  std::streamsize file_size = file.tellg();
+  file.seekg(0, std::ios::beg);
+  std::vector<uint8_t> file_data(file_size);
+  file.read(reinterpret_cast<char*>(file_data.data()), file_size);
+  file.close();
+  const uint8_t* w_ptr = &file_data[target_position];
+  
+  switch (_weights->data_type()) {
+    case OperandType::QUANT_TRIX_W4A8:
+      nnfw::cker::FullyConnectedTRIXW4A8(op_params, getShape(_input), getBuffer<uint8_t>(_input),
+                                         getShape(_weights), w_ptr,
+                                         getShape(_bias), _bias ? getBuffer<int32_t>(_bias) : nullptr,
+                                         getShape(_output), getBuffer<uint8_t>(_output), 
+                                         trix_quant.in_ch_stride, trix_quant.input_scale, trix_quant.input_zp, trix_quant.offset,
+                                         filter_per_channel_scales, filter_per_channel_zp);
+      break;
+    case OperandType::QUANT_TRIX_W8A8:
+      //nnfw::cker::FullyConnectedTRIXW8A8();
+      throw std::runtime_error{"FullyConnected: NYI"};  
+      break;
+    case OperandType::QUANT_TRIX_W8A16:
+      //nnfw::cker::FullyConnectedTRIXW8A16();
+      throw std::runtime_error{"FullyConnected: NYI"};  
+      break;
+    default:
+      throw std::runtime_error{"FullyConnected: Unsupported TRIX weight type"};     
+  }  
 
 }
 

@@ -57,11 +57,6 @@ public:
   std::vector<int8_t> input_quantized;
   std::vector<float> scaling_factors;
   std::vector<int32_t> accum_scratch;
-  // TRIXQuantization information
-  int32_t in_ch_stride = 0;
-  float input_scale = 0.0f;
-  int32_t input_zp = 0;
-  std::vector<int32_t> offset;
 };
 
 #if defined(CKER_X86_PLATFORM)
@@ -251,6 +246,37 @@ inline void FullyConnectedHybrid(const FullyConnectedParams &params, const Shape
   }
   return;
 }
+
+inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
+  const Shape &input_shape, const uint8_t *input_data,
+  const Shape &filter_shape, const uint8_t *filter_data,
+  const Shape &bias_shape, const int32_t *bias_data,
+  const Shape &output_shape, uint8_t *output_data, 
+  int32_t in_ch_stride,
+  float input_scale,
+  int32_t input_zp, const std::vector<int32_t> &offset,
+  const float *filter_per_channel_scales,
+  const int32_t *filter_per_channel_zp)
+{
+  (void)params;
+  
+  // Suppress unused parameter warnings
+  (void)input_shape;
+  (void)input_data;
+  (void)filter_shape;
+  (void)filter_data;
+  (void)bias_shape;
+  (void)bias_data;
+  (void)output_shape;
+  (void)output_data;
+  (void)in_ch_stride;
+  (void)input_scale;
+  (void)input_zp;
+  (void)offset;
+  (void)filter_per_channel_scales;
+  (void)filter_per_channel_zp;
+}
+
 
 inline void FullyConnectedSparseWeightRandom(
   const FullyConnectedParams &params, [[maybe_unused]] const Shape &input_shape,
