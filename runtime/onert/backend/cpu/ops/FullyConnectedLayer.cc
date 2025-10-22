@@ -178,16 +178,17 @@ void FullyConnectedLayer::fullyConnectediWeightShare()
   (void)num_zps;
   
   // Here, we load by myself weight segment ptr of TVN and pass to cker function.
-  // TODO: logic to provide weight segment ptr from outside
+  // TODO: logic to provide weight segment ptr from outside /////////////////////
   const long target_position = 39712;
-  std::ifstream file("model.tvn", std::ios::binary | std::ios::ate);
+  std::ifstream file("/mnt/ssd/dev/ONE/Product/x86_64-linux.debug/out/bin/model.tvn", std::ios::binary | std::ios::ate);
   std::streamsize file_size = file.tellg();
   file.seekg(0, std::ios::beg);
   std::vector<uint8_t> file_data(file_size);
   file.read(reinterpret_cast<char*>(file_data.data()), file_size);
   file.close();
   const uint8_t* w_ptr = &file_data[target_position];
-  
+  ///////////////////////////////////////////////////////////////////////////////
+
   switch (_weights->data_type()) {
     case OperandType::QUANT_TRIX_W4A8:
       nnfw::cker::FullyConnectedTRIXW4A8(op_params, getShape(_input), getBuffer<uint8_t>(_input),
