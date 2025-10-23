@@ -416,6 +416,11 @@ void vec_dot_q4w_tr_q8a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, con
   const float *filter_per_channel_scales,
   const int32_t *filter_per_channel_zp)
 {
+  int total_input_size = input_shape.FlatSize();
+  const int input_size = filter_shape.Dims(1);
+  const int input_row_size = total_input_size / input_size; // to deal with 3D input e.g [1x128x512]
+  
+
   // 1. Quantize F32 input to Q8 using input scale and zero point
   std::vector<uint8_t> input_quantized(input_shape.FlatSize());
   quantize_q8a_tr_reference(reinterpret_cast<const float*>(input_data), input_quantized.data(), input_scale, input_zp,input_shape.FlatSize());
@@ -435,20 +440,24 @@ void vec_dot_q4w_tr_q8a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, con
   std::vector<float> out32(32);
   const uint8_t *w_ptr = nullptr;  
 
-  auto begin_row0 = 0;
-  auto end_row0 = filter_shape.Dims(0);
+  auto begin_row0 = 0; // filter begin row
+  auto end_row0 = filter_shape.Dims(0); // filter end row
   auto blck_0 = 32;
   int32_t weight_col_size = filter_shape.Dims(1);
+  int32_t input_col_size = filter_shape.Dims(1);
   const uint8_t *i_ptr = nullptr;
   
+ // iir1 = input row index, iir0 = weight row index 
+ for (int32_t iir1 = 0; iir1 < input_row_size; iir1++ ) {
+  std::cout << "iir1: " << iir1 << " ";
   for (int32_t iir0 = begin_row0; iir0 < end_row0; iir0 += blck_0) {
-    float * dst_col = (float *) ((float*)output_data + iir0);
+    float * dst_col = (float *) ((float*)output_data + iir1*end_row0 + iir0);
     for (int32_t in_ch = 0; in_ch < weight_col_size; in_ch += in_ch_stride) {
       size_t off_index = (iir0/blck_0)*((weight_col_size+in_ch_stride-1)/in_ch_stride) + (in_ch+in_ch_stride-1)/in_ch_stride;
       w_ptr = filter_data + offset[off_index];
       const uint8_t *cur_filter_zp = filter_zerop.data() + iir0;
       const float *cur_filter_scale = filter_per_channel_scales + iir0;
-      i_ptr = input_quantized.data() + in_ch;
+      i_ptr = input_quantized.data() + input_col_size*iir1 + in_ch;
       
       size_t real_stride= std::min(in_ch_stride, weight_col_size-in_ch);
       vec_dot_q4w_tr_q8a_tr(real_stride, out32.data(), w_ptr, cur_filter_scale, cur_filter_zp, i_ptr, input_scale, input_zp);
@@ -458,10 +467,11 @@ void vec_dot_q4w_tr_q8a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, con
       }
       for(int i = 0; i < blck_0; i++) {
         *(dst_col+i) += out32[i];
-        std::cout << out32[i] << " ";
+        //std::cout << out32[i] << " ";
       }
     }
   }
+}
   
   
   // Suppress unused parameter warnings
