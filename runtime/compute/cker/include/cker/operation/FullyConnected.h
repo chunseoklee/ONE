@@ -250,10 +250,29 @@ inline void FullyConnectedHybrid(const FullyConnectedParams &params, const Shape
   return;
 }
 
+/**
+ * @brief Reference implementation for quantizing float32 values to uint8_t
+ * 
+ * This function quantizes floating-point values to 8-bit unsigned integers using
+ * the provided scale and zero point parameters.
+ * 
+ * @param x Input float32 array
+ * @param input_quantized Output uint8_t array for quantized values
+ * @param input_scale Scale factor for quantization
+ * @param input_zp Zero point for quantization
+ * @param k Number of elements to quantize
+ */
 void quantize_q8a_tr_reference(const float *x, uint8_t *input_quantized, float input_scale, int32_t input_zp, int64_t k) {
-    const float id = input_scale ? 1.0f/input_scale : 0.0f;
+    // Calculate inverse scale to avoid division in the loop
+    const float inverse_scale = (input_scale != 0.0f) ? (1.0f / input_scale) : 0.0f;
+    
+    // Quantize each element: quantized_value = round(float_value / scale) + zero_point
     for (int64_t i = 0; i < k; i++) {
-        input_quantized[i] = std::min(UINT8_MAX, std::max(0, static_cast<int>(std::round(x[i] * id + input_zp))));
+        const float scaled_value = x[i] * inverse_scale + input_zp;
+        const int rounded_value = static_cast<int>(std::round(scaled_value));
+        
+        // Clamp to uint8_t range [0, 255]
+        input_quantized[i] = static_cast<uint8_t>(std::max(0, std::min(255, rounded_value)));
     }
 }
 
@@ -264,220 +283,298 @@ inline static int32_t vaddvq_s32(int32x4_t v) {
 }
 #endif
 
+/**
+ * @brief Vector dot product for TRIX quantized weights (4-bit) and activations (8-bit)
+ * 
+ * This function computes the dot product between 4-bit quantized weights and 8-bit quantized inputs
+ * for 32 output channels. It uses NEON intrinsics for ARM optimization when available.
+ * 
+ * @param n Number of input elements (must be multiple of 32)
+ * @param s Output array for 32 dot product results
+ * @param w_ptr Pointer to 4-bit quantized weight data
+ * @param w_scales Per-channel scale factors for weights
+ * @param w_zerops Per-channel zero points for weights
+ * @param i_ptr Pointer to 8-bit quantized input data
+ * @param i_scale Scale factor for input quantization
+ * @param i_zerop Zero point for input quantization
+ */
 void vec_dot_q4w_tr_q8a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, const float *w_scales, const uint8_t *w_zerops, const uint8_t *i_ptr, float i_scale, uint32_t i_zerop)
 {
-    assert(n % 32 == 0);
+    // Constants
+    constexpr int NUM_CHANNELS = 32;
+    constexpr int ELEMENTS_PER_CHANNEL = 16;  // 32 elements per channel, 2 elements per byte (4-bit)
+    
+    
+    assert(n % NUM_CHANNELS == 0);
 
 #if defined(__ARM_NEON)
-    // number of channels
-    const int nc = 32;
-    // input setting
-    // struct ggml_trix_qparams * iqp = vy->d;
-    uint8_t input_zp = i_zerop;
-    float input_scale = i_scale;
-    const uint8_t *y = i_ptr;
-    // weight setting
-    const uint8_t *x = w_ptr; // n 4bit quantize values ( n/2 byte)
-  
-    int nb = n / 32;
+    constexpr int ACCUMULATION_INTERVAL = 4;  // Accumulate every 4 iterations to prevent overflow
+    // NEON-optimized implementation for ARM processors
+    
+    // Extract quantization parameters
+    const uint8_t input_zp = static_cast<uint8_t>(i_zerop);
+    const float input_scale = i_scale;
+    const uint8_t *input_data = i_ptr;
+    const uint8_t *weight_data = w_ptr;  // 4-bit quantized values (n/2 bytes)
+    
+    const int num_blocks = n / NUM_CHANNELS;
 
-    uint8_t * cur_input;
-    //uint8_t * cur_weight;
-
-    int32x4_t sum32l[nc];
-    int32x4_t sum32h[nc];
-    int16x8_t sum16l[nc];
-    int16x8_t sum16h[nc];
-    for (int j = 0; j < nc; ++ j) {
-        sum32l[j] = vdupq_n_s32(0);
-        sum32h[j] = vdupq_n_s32(0);
-        sum16l[j] = vdupq_n_s16(0);
-        sum16h[j] = vdupq_n_s16(0);
+    // Accumulation registers for each channel
+    int32x4_t sum32_low[NUM_CHANNELS];   // Lower 32-bit accumulators
+    int32x4_t sum32_high[NUM_CHANNELS];  // Higher 32-bit accumulators
+    int16x8_t sum16_low[NUM_CHANNELS];   // Lower 16-bit accumulators
+    int16x8_t sum16_high[NUM_CHANNELS];  // Higher 16-bit accumulators
+    
+    // Initialize accumulators to zero
+    for (int channel = 0; channel < NUM_CHANNELS; ++channel) {
+        sum32_low[channel] = vdupq_n_s32(0);
+        sum32_high[channel] = vdupq_n_s32(0);
+        sum16_low[channel] = vdupq_n_s16(0);
+        sum16_high[channel] = vdupq_n_s16(0);
     }
 
-    const uint8x16_t mask_lower_4 = vdupq_n_u8(0x0F);
-    const int16x8_t vinput_zp = vdupq_n_s16(input_zp);
+    // NEON constants
+    const uint8x16_t mask_4bit = vdupq_n_u8(0x0F);  // Mask to extract lower 4 bits
+    const int16x8_t input_zp_vec = vdupq_n_s16(input_zp);
 
-    for (int i = 0; i < nb; ++ i) {
-        cur_input = (uint8_t *)(y + 32*i); // input update for next block
+    // Process blocks of 32 elements
+    for (int block_idx = 0; block_idx < num_blocks; ++block_idx) {
+        const uint8_t *current_input = input_data + (NUM_CHANNELS * block_idx);
 
-        // load inputs, input_l contains first 16 elements and input_h contains next 16 elements
-        const uint8x16_t input_l = vld1q_u8(cur_input);
-        const uint8x16_t input_h = vld1q_u8(cur_input + 16);
+        // Load 32 input elements: 16 in lower half, 16 in upper half
+        const uint8x16_t input_low = vld1q_u8(current_input);
+        const uint8x16_t input_high = vld1q_u8(current_input + 16);
 
-        const int16x8_t input_ll = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(input_l))), vinput_zp);
-        const int16x8_t input_lh = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(input_l))), vinput_zp);
-        const int16x8_t input_hl = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(input_h))), vinput_zp);
-        const int16x8_t input_hh = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(input_h))), vinput_zp);
+        // Convert to int16 and subtract zero point
+        const int16x8_t input_ll = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(input_low))), input_zp_vec);
+        const int16x8_t input_lh = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(input_low))), input_zp_vec);
+        const int16x8_t input_hl = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(input_high))), input_zp_vec);
+        const int16x8_t input_hh = vsubq_s16(vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(input_high))), input_zp_vec);
 
-        for (int j = 0; j < nc; ++ j){  // j is channel index
-            // load weights
-            const uint8x16_t weight = vld1q_u8(x + i*(nc*16) + j*16);
+        // Process each channel
+        for (int channel = 0; channel < NUM_CHANNELS; ++channel) {
+            // Load 16 bytes of 4-bit weights for this channel
+            const uint8x16_t packed_weights = vld1q_u8(weight_data + block_idx * (NUM_CHANNELS * ELEMENTS_PER_CHANNEL) + channel * ELEMENTS_PER_CHANNEL);
 
-            // 4bit -> 8bit, weight0 contains even elements and weight 1 contains odd elements
-            const int8x16_t weight0 = vreinterpretq_s8_u8(vandq_u8(weight, mask_lower_4));
-            const int8x16_t weight1 = vreinterpretq_s8_u8(vshrq_n_u8(weight, 4));
+            // Unpack 4-bit weights to 8-bit: separate even and odd elements
+            const int8x16_t weight_even = vreinterpretq_s8_u8(vandq_u8(packed_weights, mask_4bit));
+            const int8x16_t weight_odd = vreinterpretq_s8_u8(vshrq_n_u8(packed_weights, 4));
 
-            // subtract zp
-            const int8x16_t weight_zp = vdupq_n_s8(w_zerops[j]);
-            const int8x16_t weight0s = vsubq_s8(weight0, weight_zp);
-            const int8x16_t weight1s = vsubq_s8(weight1, weight_zp);
+            // Subtract weight zero point
+            const int8x16_t weight_zp_vec = vdupq_n_s8(w_zerops[channel]);
+            const int8x16_t weight_even_sub = vsubq_s8(weight_even, weight_zp_vec);
+            const int8x16_t weight_odd_sub = vsubq_s8(weight_odd, weight_zp_vec);
 
-            // zip weights, weight_l contains first 16 elements and weight_h contains next 16 elements
-            const int8x16x2_t weight_zipped = vzipq_s8(weight0s, weight1s);
-            const int8x16_t weight_l = weight_zipped.val[0];
-            const int8x16_t weight_h = weight_zipped.val[1];
+            // Interleave even and odd weights to restore original order
+            const int8x16x2_t weight_interleaved = vzipq_s8(weight_even_sub, weight_odd_sub);
+            const int8x16_t weight_low = weight_interleaved.val[0];
+            const int8x16_t weight_high = weight_interleaved.val[1];
 
-            const int16x8_t weight_ll = vmovl_s8(vget_low_s8(weight_l));
-            const int16x8_t weight_lh = vmovl_s8(vget_high_s8(weight_l));
-            const int16x8_t weight_hl = vmovl_s8(vget_low_s8(weight_h));
-            const int16x8_t weight_hh = vmovl_s8(vget_high_s8(weight_h));
+            // Convert to int16 for multiplication
+            const int16x8_t weight_ll = vmovl_s8(vget_low_s8(weight_low));
+            const int16x8_t weight_lh = vmovl_s8(vget_high_s8(weight_low));
+            const int16x8_t weight_hl = vmovl_s8(vget_low_s8(weight_high));
+            const int16x8_t weight_hh = vmovl_s8(vget_high_s8(weight_high));
 
-            // sum[j] += weight*input
-            sum16l[j] = vmlaq_s16(vmlaq_s16(sum16l[j], weight_ll, input_ll), weight_lh, input_lh);
-            sum16h[j] = vmlaq_s16(vmlaq_s16(sum16h[j], weight_hl, input_hl), weight_hh, input_hh);
+            // Multiply-accumulate: sum += weight * input
+            sum16_low[channel] = vmlaq_s16(vmlaq_s16(sum16_low[channel], weight_ll, input_ll), weight_lh, input_lh);
+            sum16_high[channel] = vmlaq_s16(vmlaq_s16(sum16_high[channel], weight_hl, input_hl), weight_hh, input_hh);
         }
 
-        if(i % 4 == 3){
-            for (int j = 0; j < nc; ++ j){
-                // sum32 += sum16 and set sum16 to 0
-                sum32l[j] = vaddq_s32(sum32l[j], vpaddlq_s16(sum16l[j]));
-                sum32h[j] = vaddq_s32(sum32h[j], vpaddlq_s16(sum16h[j]));
-                sum16l[j] = vdupq_n_s16(0);
-                sum16h[j] = vdupq_n_s16(0);
+        // Periodically accumulate 16-bit results into 32-bit to prevent overflow
+        if (block_idx % ACCUMULATION_INTERVAL == ACCUMULATION_INTERVAL - 1) {
+            for (int channel = 0; channel < NUM_CHANNELS; ++channel) {
+                sum32_low[channel] = vaddq_s32(sum32_low[channel], vpaddlq_s16(sum16_low[channel]));
+                sum32_high[channel] = vaddq_s32(sum32_high[channel], vpaddlq_s16(sum16_high[channel]));
+                sum16_low[channel] = vdupq_n_s16(0);
+                sum16_high[channel] = vdupq_n_s16(0);
             }
         }
     }
 
-    if(nb % 4 != 0){
-        for (int j = 0; j < nc; ++ j){
-            // sum32 += sum16
-            sum32l[j] = vaddq_s32(sum32l[j], vpaddlq_s16(sum16l[j]));
-            sum32h[j] = vaddq_s32(sum32h[j], vpaddlq_s16(sum16h[j]));
+    // Final accumulation for any remaining 16-bit results
+    if (num_blocks % ACCUMULATION_INTERVAL != 0) {
+        for (int channel = 0; channel < NUM_CHANNELS; ++channel) {
+            sum32_low[channel] = vaddq_s32(sum32_low[channel], vpaddlq_s16(sum16_low[channel]));
+            sum32_high[channel] = vaddq_s32(sum32_high[channel], vpaddlq_s16(sum16_high[channel]));
         }
     }
 
-    for (int j = 0; j < nc; ++j){
-        s[j] = vaddvq_s32(vaddq_s32(sum32l[j], sum32h[j]))* w_scales[j] * input_scale;
-    } 
+    // Combine high and low accumulators, apply scaling, and store results
+    for (int channel = 0; channel < NUM_CHANNELS; ++channel) {
+        const int32x4_t combined_sum = vaddq_s32(sum32_low[channel], sum32_high[channel]);
+        const int32_t final_sum = vaddvq_s32(combined_sum);
+        s[channel] = static_cast<float>(final_sum) * w_scales[channel] * input_scale;
+    }
 
 #else
-    // Reference implementation
+    // Reference implementation for non-ARM platforms
+    
+    // Extract quantization parameters
+    const uint8_t input_zp = static_cast<uint8_t>(i_zerop);
+    const float input_scale = i_scale;
+    const uint8_t *input_data = i_ptr;
+    const uint8_t *weight_data = w_ptr;  // 4-bit quantized values (n/2 bytes)
 
-    uint8_t input_zp = i_zerop;
-    float input_scale = i_scale;
-    const uint8_t *y = i_ptr; // In this function, y is input ptr
+    const int num_blocks = n / NUM_CHANNELS;
+    int32_t channel_accumulators[NUM_CHANNELS] = {0};
 
-    // weight setting
-    const uint8_t *x = w_ptr; // n 4bit quantize values ( n/2 byte)
-    //const struct ggml_trix_qparams * qp = vx->d; // n qparam(zp, scale)
+    const uint8_t *current_input;
+    const uint8_t *current_weight;
 
-    int nb = n / 32;
-    int32_t sum[32] = {0,};
+    // Process each block
+    for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
+        current_input = input_data + (NUM_CHANNELS * block_idx);
 
-    const uint8_t * cur_input;
-    const uint8_t * cur_weight;
+        // Process each channel
+        for (int channel = 0; channel < NUM_CHANNELS; ++channel) {
+            current_weight = weight_data + block_idx * (NUM_CHANNELS * ELEMENTS_PER_CHANNEL) + channel * ELEMENTS_PER_CHANNEL;
+            
+            // Compute dot product for 32 inputs and 32 weights (4-bit each)
+            for (int elem_idx = 0; elem_idx < ELEMENTS_PER_CHANNEL; ++elem_idx) {
+                // Unpack 4-bit weights: extract lower and upper 4 bits
+                const int32_t weight_low = (current_weight[elem_idx] & 0x0F) - w_zerops[channel];
+                const int32_t weight_high = (current_weight[elem_idx] >> 4) - w_zerops[channel];
 
-    for (int i = 0; i < nb; i++) {
-        cur_input = y + 32*i; // input update for next block
+                // Extract corresponding input values
+                const int32_t input_low = current_input[2 * elem_idx] - input_zp;
+                const int32_t input_high = current_input[2 * elem_idx + 1] - input_zp;
 
-        for (int j = 0; j < 32; ++j){  // j is channel index
-            cur_weight = x + i*(32*16) + j*16;
-            for (int k = 0; k < 16; ++k) {  // dot product for 32 inputs and 32 weights
-                // 4bit -> 8bit
-                const int32_t v0 = (cur_weight[k] & 0x0F) - w_zerops[j];
-                const int32_t v1 = (cur_weight[k] >>   4) - w_zerops[j];
-
-                const int32_t i0 = cur_input[2*k] - input_zp;
-                const int32_t i1 = cur_input[2*k + 1] - input_zp;
-
-                sum[j] += (v0 * i0) + (v1 * i1);
+                // Accumulate products
+                channel_accumulators[channel] += (weight_low * input_low) + (weight_high * input_high);
             }
         }
     }
 
-    for (int j = 0; j < 32; ++j){
-        s[j] = sum[j] * w_scales[j] * input_scale;
+    // Apply scaling and store results
+    for (int channel = 0; channel < NUM_CHANNELS; ++channel) {
+        s[channel] = static_cast<float>(channel_accumulators[channel]) * w_scales[channel] * input_scale;
     }
 
 #endif
-
 }
 
 
- inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
-  const Shape &input_shape, const uint8_t *input_data,
-  const Shape &filter_shape, const uint8_t *filter_data,
-  const Shape &bias_shape, const int32_t *bias_data,
-  const Shape &output_shape, uint8_t *output_data, 
-  int32_t in_ch_stride,
-  float input_scale,
-  int32_t input_zp, const std::vector<int32_t> &offset,
-  const float *filter_per_channel_scales,
-  const int32_t *filter_per_channel_zp)
+/**
+ * @brief FullyConnected layer with TRIX W4A8 quantization (4-bit weights, 8-bit activations)
+ * 
+ * This function implements a fully connected layer with TRIX quantization where:
+ * - Weights are quantized to 4-bit per channel
+ * - Activations are quantized to 8-bit
+ * - Uses micro-kernel approach processing 32 output channels at a time
+ * 
+ * @param params FullyConnected parameters (currently unused)
+ * @param input_shape Shape of input tensor
+ * @param input_data Input tensor data (float32, will be quantized to uint8)
+ * @param filter_shape Shape of filter/weights tensor
+ * @param filter_data Filter data (4-bit quantized)
+ * @param bias_shape Shape of bias tensor
+ * @param bias_data Bias data (int32)
+ * @param output_shape Shape of output tensor
+ * @param output_data Output tensor data (currently unused - output written to float buffer)
+ * @param in_ch_stride Input channel stride for processing
+ * @param input_scale Scale factor for input quantization
+ * @param input_zp Zero point for input quantization
+ * @param offset Offset array for weight data access
+ * @param filter_per_channel_scales Per-channel scale factors for weights
+ * @param filter_per_channel_zp Per-channel zero points for weights
+ */
+inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
+                                   const Shape &input_shape, const uint8_t *input_data,
+                                   const Shape &filter_shape, const uint8_t *filter_data,
+                                   const Shape &bias_shape, const int32_t *bias_data,
+                                   const Shape &output_shape, uint8_t *output_data, 
+                                   int32_t in_ch_stride,
+                                   float input_scale,
+                                   int32_t input_zp, const std::vector<int32_t> &offset,
+                                   const float *filter_per_channel_scales,
+                                   const int32_t *filter_per_channel_zp)
 {
-  int total_input_size = input_shape.FlatSize();
+  // Constants
+  constexpr int MICRO_KERNEL_SIZE = 32;  // Process 32 output channels at a time
+  
+  // Extract dimensions
+  const int total_input_size = input_shape.FlatSize();
   const int input_size = filter_shape.Dims(1);
-  const int input_row_size = total_input_size / input_size; // to deal with 3D input e.g [1x128x512]
-  
+  const int input_row_size = total_input_size / input_size;  // Handle 3D input e.g [1x128x512]
+  const int output_channels = filter_shape.Dims(0);
+  const int weight_cols = filter_shape.Dims(1);
 
-  // 1. Quantize F32 input to Q8 using input scale and zero point
-  std::vector<uint8_t> input_quantized(input_shape.FlatSize());
-  quantize_q8a_tr_reference(reinterpret_cast<const float*>(input_data), input_quantized.data(), input_scale, input_zp,input_shape.FlatSize());
+  // Step 1: Quantize F32 input to Q8 using input scale and zero point
+  std::vector<uint8_t> input_quantized(total_input_size);
+  quantize_q8a_tr_reference(reinterpret_cast<const float*>(input_data), 
+                           input_quantized.data(), 
+                           input_scale, 
+                           input_zp, 
+                           total_input_size);
 
-  // 2. Main loop
-  
-  // 2-1. convert weight zerop to uint8_t* for micro kernel
-  std::vector<uint8_t> filter_zerop(filter_shape.Dims(0)); // per channel zerop as uint8_t for micro kernel
-  for (int i = 0; i < filter_shape.Dims(0); i++) {
-    filter_zerop[i] = filter_per_channel_zp[i];
+  // Step 2: Prepare uint8_t type per-channel zero points for micro kernel
+  std::vector<uint8_t> filter_zerop(output_channels);
+  for (int i = 0; i < output_channels; i++) {
+    filter_zerop[i] = static_cast<uint8_t>(filter_per_channel_zp[i]);
   }
   
-  // 2-2. micro kernel
-  // Our compute unit for micro kernel is W[32, emb_size] x I[1, emb_size] -> O[32]
-  // Thus, each loop produces 32 outputs(along output channel axis)
-
-  std::vector<float> out32(32);
-  const uint8_t *w_ptr = nullptr;  
-
-  auto begin_row0 = 0; // filter begin row
-  auto end_row0 = filter_shape.Dims(0); // filter end row
-  auto blck_0 = 32;
-  int32_t weight_col_size = filter_shape.Dims(1);
-  int32_t input_col_size = filter_shape.Dims(1);
-  const uint8_t *i_ptr = nullptr;
+  // Step 3: Main computation loop
+  // Micro kernel processes W[32, emb_size] x I[1, emb_size] -> O[32]
+  // Each iteration produces 32 outputs along the output channel axis
+  std::vector<float> output_buffer(MICRO_KERNEL_SIZE);
   
- // iir1 = input row index, iir0 = weight row index 
- for (int32_t iir1 = 0; iir1 < input_row_size; iir1++ ) {
-  std::cout << "iir1: " << iir1 << " ";
-  for (int32_t iir0 = begin_row0; iir0 < end_row0; iir0 += blck_0) {
-    float * dst_col = (float *) ((float*)output_data + iir1*end_row0 + iir0);
-    for (int32_t in_ch = 0; in_ch < weight_col_size; in_ch += in_ch_stride) {
-      size_t off_index = (iir0/blck_0)*((weight_col_size+in_ch_stride-1)/in_ch_stride) + (in_ch+in_ch_stride-1)/in_ch_stride;
-      w_ptr = filter_data + offset[off_index];
-      const uint8_t *cur_filter_zp = filter_zerop.data() + iir0;
-      const float *cur_filter_scale = filter_per_channel_scales + iir0;
-      i_ptr = input_quantized.data() + input_col_size*iir1 + in_ch;
+  // Process each input row
+  for (int32_t input_row_idx = 0; input_row_idx < input_row_size; input_row_idx++) {
+    
+    // Process output channels in blocks of MICRO_KERNEL_SIZE
+    for (int32_t output_channel_start = 0; output_channel_start < output_channels; output_channel_start += MICRO_KERNEL_SIZE) {
       
-      size_t real_stride= std::min(in_ch_stride, weight_col_size-in_ch);
-      vec_dot_q4w_tr_q8a_tr(real_stride, out32.data(), w_ptr, cur_filter_scale, cur_filter_zp, i_ptr, input_scale, input_zp);
-      // 32 or 16 float result acumulated to dst_col
-      if (in_ch == 0) {
-        memset(dst_col, 0, sizeof(float)*blck_0);
-      }
-      for(int i = 0; i < blck_0; i++) {
-        *(dst_col+i) += out32[i];
-        //std::cout << out32[i] << " ";
+      // Get destination pointer for this block
+      float *destination_ptr = reinterpret_cast<float*>(output_data) + 
+                              (input_row_idx * output_channels) + 
+                              output_channel_start;
+      
+      // Process input channels in strides
+      for (int32_t input_channel_start = 0; input_channel_start < weight_cols; input_channel_start += in_ch_stride) {
+        
+        // Calculate offset index for weight data access
+        const size_t offset_index = (output_channel_start / MICRO_KERNEL_SIZE) * 
+                                   ((weight_cols + in_ch_stride - 1) / in_ch_stride) + 
+                                   ((input_channel_start + in_ch_stride - 1) / in_ch_stride);
+        
+        // Get pointers to current weight and input data
+        const uint8_t *weight_ptr = filter_data + offset[offset_index];
+        const uint8_t *current_filter_zp = filter_zerop.data() + output_channel_start;
+        const float *current_filter_scale = filter_per_channel_scales + output_channel_start;
+        const uint8_t *input_ptr = input_quantized.data() + 
+                                  (weight_cols * input_row_idx) + 
+                                  input_channel_start;
+        
+        // Calculate actual stride (handle edge case)
+        const size_t actual_stride = std::min(static_cast<size_t>(in_ch_stride), 
+                                             static_cast<size_t>(weight_cols - input_channel_start));
+        
+        // Execute micro kernel: compute dot product for this block
+        vec_dot_q4w_tr_q8a_tr(actual_stride, 
+                             output_buffer.data(), 
+                             weight_ptr, 
+                             current_filter_scale, 
+                             current_filter_zp, 
+                             input_ptr, 
+                             input_scale, 
+                             input_zp);
+        
+        // Initialize destination buffer on first stride
+        if (input_channel_start == 0) {
+          std::memset(destination_ptr, 0, sizeof(float) * MICRO_KERNEL_SIZE);
+        }
+        
+        // Accumulate results
+        for (int i = 0; i < MICRO_KERNEL_SIZE; i++) {
+          destination_ptr[i] += output_buffer[i];
+        }
       }
     }
   }
-}
-  
   
   // Suppress unused parameter warnings
   (void)params;
-  
- 
   (void)bias_shape;
   (void)bias_data;
   (void)output_shape;

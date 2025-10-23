@@ -147,51 +147,84 @@ void FullyConnectedLayer::fullyConnectedHybrid()
 #endif
 }
 
+/**
+ * @brief Execute fully connected layer with TRIX weight sharing quantization
+ * 
+ * This function handles TRIX quantized weights with weight sharing. It loads weight data
+ * from external files and dispatches to the appropriate TRIX kernel based on the weight type.
+ * 
+ * Note: This implementation contains hardcoded file loading logic that should be replaced
+ * with proper weight management in a production environment.
+ */
 void FullyConnectedLayer::fullyConnectediWeightShare()
 {
+  // Extract TRIX quantization parameters
   const auto &trix_quant = *_weights->get_info().typeInfo().trixQuantization();
  
+  // Prepare operation parameters
   nnfw::cker::FullyConnectedParams op_params;
   op_params.activation = convertActivationType(_activation);
   op_params.weights_scale = _weights->data_scale();
 
-  // weight scales and zero_points
+  // Extract per-channel weight quantization parameters
   const auto *filter_per_channel_scales = _weights->data_scales().data();
   const auto *filter_per_channel_zp = _weights->data_zero_points().data();
    
-  // Here, we load by myself weight segment ptr of TVN and pass to cker function.
-  // TODO: logic to provide weight segment ptr from outside /////////////////////
-  const long target_position = 39712;
-  std::ifstream file("/mnt/ssd/dev/ONE/Product/x86_64-linux.debug/out/bin/model.tvn", std::ios::binary | std::ios::ate);
-  std::streamsize file_size = file.tellg();
-  file.seekg(0, std::ios::beg);
+  // TODO: FIXME - This is a temporary workaround for weight loading
+  // In production, weight data should be provided through the proper tensor interface
+  // rather than hardcoded file loading
+  constexpr long TVN_WEIGHT_OFFSET = 39712;
+  constexpr const char* TVN_FILE_PATH = "/mnt/ssd/dev/ONE/Product/x86_64-linux.debug/out/bin/model.tvn";
+  
+  // Load weight data from TVN file (temporary implementation)
+  std::ifstream weight_file(TVN_FILE_PATH, std::ios::binary | std::ios::ate);
+  if (!weight_file.is_open()) {
+    throw std::runtime_error{"FullyConnected: Failed to open TVN weight file: " + std::string(TVN_FILE_PATH)};
+  }
+  
+  const std::streamsize file_size = weight_file.tellg();
+  weight_file.seekg(0, std::ios::beg);
+  
   std::vector<uint8_t> file_data(file_size);
-  file.read(reinterpret_cast<char*>(file_data.data()), file_size);
-  file.close();
-  const uint8_t* w_ptr = &file_data[target_position];
+  weight_file.read(reinterpret_cast<char*>(file_data.data()), file_size);
+  weight_file.close();
+  
+  const uint8_t* weight_data_ptr = &file_data[TVN_WEIGHT_OFFSET];
   ///////////////////////////////////////////////////////////////////////////////
 
+  // Dispatch to appropriate TRIX kernel based on weight quantization type
   switch (_weights->data_type()) {
     case OperandType::QUANT_TRIX_W4A8:
-      nnfw::cker::FullyConnectedTRIXW4A8(op_params, getShape(_input), getBuffer<uint8_t>(_input),
-                                         getShape(_weights), w_ptr,
-                                         getShape(_bias), _bias ? getBuffer<int32_t>(_bias) : nullptr,
-                                         getShape(_output), getBuffer<uint8_t>(_output), 
-                                         trix_quant.in_ch_stride, trix_quant.input_scale, trix_quant.input_zp, trix_quant.offset,
-                                         filter_per_channel_scales, filter_per_channel_zp);
+      // 4-bit weights, 8-bit activations
+      nnfw::cker::FullyConnectedTRIXW4A8(op_params, 
+                                         getShape(_input), 
+                                         getBuffer<uint8_t>(_input),
+                                         getShape(_weights), 
+                                         weight_data_ptr,
+                                         getShape(_bias), 
+                                         _bias ? getBuffer<int32_t>(_bias) : nullptr,
+                                         getShape(_output), 
+                                         getBuffer<uint8_t>(_output), 
+                                         trix_quant.in_ch_stride, 
+                                         trix_quant.input_scale, 
+                                         trix_quant.input_zp, 
+                                         trix_quant.offset,
+                                         filter_per_channel_scales, 
+                                         filter_per_channel_zp);
       break;
+      
     case OperandType::QUANT_TRIX_W8A8:
-      //nnfw::cker::FullyConnectedTRIXW8A8();
-      throw std::runtime_error{"FullyConnected: NYI"};  
-      break;
+      // 8-bit weights, 8-bit activations (not yet implemented)
+      throw std::runtime_error{"FullyConnected: TRIX W8A8 quantization not yet implemented"};
+      
     case OperandType::QUANT_TRIX_W8A16:
-      //nnfw::cker::FullyConnectedTRIXW8A16();
-      throw std::runtime_error{"FullyConnected: NYI"};  
-      break;
+      // 8-bit weights, 16-bit activations (not yet implemented)
+      throw std::runtime_error{"FullyConnected: TRIX W8A16 quantization not yet implemented"};
+      
     default:
-      throw std::runtime_error{"FullyConnected: Unsupported TRIX weight type"};     
+      throw std::runtime_error{"FullyConnected: Unsupported TRIX weight type: " + 
+                              std::to_string(static_cast<int>(_weights->data_type()))};
   }  
-
 }
 
 void FullyConnectedLayer::fullyConnectedSparseWeight()
