@@ -149,18 +149,6 @@ void FullyConnectedLayer::fullyConnectedHybrid()
 
 void FullyConnectedLayer::fullyConnectediWeightShare()
 {
-  // TODO: Implement actual TRIX weight sharing logic
-  // This would typically involve:
-  // 1. TRIXQuantization parameters stored in temp_arena
-  // 2. Calling appropriate cker functions with TRIX-specific parameters
-
-  nnfw::cker::FCTempArena &temp_arena = *_temp_arena;
-  if (!temp_arena.prepared)
-  {
-    temp_arena.prepare(getShape(_input), getShape(_weights));
-  }
-
-  // Set TRIXQuantization information in temp_arena
   const auto &trix_quant = *_weights->get_info().typeInfo().trixQuantization();
  
   nnfw::cker::FullyConnectedParams op_params;
@@ -169,14 +157,8 @@ void FullyConnectedLayer::fullyConnectediWeightShare()
 
   // weight scales and zero_points
   const auto *filter_per_channel_scales = _weights->data_scales().data();
-  const auto num_scales = _weights->data_scales().size();
   const auto *filter_per_channel_zp = _weights->data_zero_points().data();
-  const auto num_zps = _weights->data_zero_points().size();
-  
-  // Suppress unused variable warnings
-  (void)num_scales;
-  (void)num_zps;
-  
+   
   // Here, we load by myself weight segment ptr of TVN and pass to cker function.
   // TODO: logic to provide weight segment ptr from outside /////////////////////
   const long target_position = 39712;
