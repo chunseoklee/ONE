@@ -456,13 +456,60 @@ void vec_dot_q4w_tr_q8a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, con
 
 
 /**
- * @brief FullyConnected layer with TRIX W4A8 quantization (4-bit weights, 8-bit activations)
+ * @brief Alternative vector dot product for 8-bit weights and 8-bit activations
  * 
- * This function implements a fully connected layer with TRIX quantization where:
- * - Weights are quantized to 4-bit per channel
- * - Activations are quantized to 8-bit
- * - Uses micro-kernel approach processing 32 output channels at a time
+ * This is an example alternative implementation that could use different algorithms
+ * or optimizations compared to vec_dot_q4w_tr_q8a_tr. Currently implemented as a
+ * placeholder that delegates to the original function for compatibility.
  * 
+ * @param n Number of input elements (must be multiple of 32)
+ * @param s Output array for 32 dot product results
+ * @param w_ptr Pointer to 8-bit quantized weight data
+ * @param w_scales Per-channel scale factors for weights
+ * @param w_zerops Per-channel zero points for weights
+ * @param i_ptr Pointer to 8-bit quantized input data
+ * @param i_scale Scale factor for input quantization
+ * @param i_zerop Zero point for input quantization
+ */
+void vec_dot_q8w_tr_q8a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, const float *w_scales, const uint8_t *w_zerops, const uint8_t *i_ptr, float i_scale, uint32_t i_zerop)
+{
+  // To suppress build warnings  
+  vec_dot_q4w_tr_q8a_tr(n, s, w_ptr, w_scales, w_zerops, i_ptr, i_scale, i_zerop);
+}
+
+void vec_dot_q8w_tr_q16a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, const float *w_scales, const uint8_t *w_zerops, const uint8_t *i_ptr, float i_scale, uint32_t i_zerop)
+{
+  // To suppress build warnings  
+  vec_dot_q4w_tr_q8a_tr(n, s, w_ptr, w_scales, w_zerops, i_ptr, i_scale, i_zerop);
+}
+
+/**
+ * @brief Function pointer type for vector dot product operations
+ * 
+ * This defines the signature for vector dot product functions that can be used
+ * with the templated FullyConnectedTRIXW4A8 implementation.
+ * 
+ * @param n Number of elements to process
+ * @param s Output array for dot product results
+ * @param w_ptr Pointer to weight data
+ * @param w_scales Per-channel scale factors for weights
+ * @param w_zerops Per-channel zero points for weights
+ * @param i_ptr Pointer to input data
+ * @param i_scale Scale factor for input quantization
+ * @param i_zerop Zero point for input quantization
+ */
+using VecDotFunction = void(*)(int n, float *s, const uint8_t *w_ptr, const float *w_scales, 
+                              const uint8_t *w_zerops, const uint8_t *i_ptr, float i_scale, uint32_t i_zerop);
+
+using QuantizeFunction = void(*)(const float *x, uint8_t *input_quantized, float input_scale, int32_t input_zp, int64_t k); 
+
+/**
+ * @brief Template implementation for FullyConnected layer with TRIX W4A8 quantization
+ * 
+ * This is a templated implementation that allows different vector dot product functions
+ * to be injected, avoiding code duplication while maintaining the same functionality.
+ * 
+ * @tparam VecDotFunc The vector dot product function to use
  * @param params FullyConnected parameters (currently unused)
  * @param input_shape Shape of input tensor
  * @param input_data Input tensor data (float32, will be quantized to uint8)
@@ -479,20 +526,18 @@ void vec_dot_q4w_tr_q8a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, con
  * @param filter_per_channel_scales Per-channel scale factors for weights
  * @param filter_per_channel_zp Per-channel zero points for weights
  */
-inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
-                                   const Shape &input_shape, const uint8_t *input_data,
-                                   const Shape &filter_shape, const uint8_t *filter_data,
-                                   const Shape &bias_shape, const int32_t *bias_data,
-                                   const Shape &output_shape, uint8_t *output_data, 
-                                   int32_t in_ch_stride,
-                                   float input_scale,
-                                   int32_t input_zp, const std::vector<int32_t> &offset,
-                                   const float *filter_per_channel_scales,
-                                   const int32_t *filter_per_channel_zp)
+template<VecDotFunction VecDotFunc, QuantizeFunction QuantFunc,int MICRO_KERNEL_SIZE, typename InputQType>
+inline void FullyConnectedTRIXImpl(FullyConnectedParams &params,
+                                       const Shape &input_shape, const uint8_t *input_data,
+                                       const Shape &filter_shape, const uint8_t *filter_data,
+                                       const Shape &bias_shape, const int32_t *bias_data,
+                                       const Shape &output_shape, uint8_t *output_data, 
+                                       int32_t in_ch_stride,
+                                       float input_scale,
+                                       int32_t input_zp, const std::vector<int32_t> &offset,
+                                       const float *filter_per_channel_scales,
+                                       const int32_t *filter_per_channel_zp)
 {
-  // Constants
-  constexpr int MICRO_KERNEL_SIZE = 32;  // Process 32 output channels at a time
-  
   // Extract dimensions
   const int total_input_size = input_shape.FlatSize();
   const int input_size = filter_shape.Dims(1);
@@ -501,9 +546,9 @@ inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
   const int weight_cols = filter_shape.Dims(1);
 
   // Step 1: Quantize F32 input to Q8 using input scale and zero point
-  std::vector<uint8_t> input_quantized(total_input_size);
-  quantize_q8a_tr_reference(reinterpret_cast<const float*>(input_data), 
-                           input_quantized.data(), 
+  std::vector<InputQType> input_quantized(total_input_size);
+  QuantFunc(reinterpret_cast<const float*>(input_data), 
+            reinterpret_cast<uint8_t*>(input_quantized.data()), 
                            input_scale, 
                            input_zp, 
                            total_input_size);
@@ -542,7 +587,7 @@ inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
         const uint8_t *weight_ptr = filter_data + offset[offset_index];
         const uint8_t *current_filter_zp = filter_zerop.data() + output_channel_start;
         const float *current_filter_scale = filter_per_channel_scales + output_channel_start;
-        const uint8_t *input_ptr = input_quantized.data() + 
+        const uint8_t *input_ptr = reinterpret_cast<const uint8_t*>(input_quantized.data()) + 
                                   (weight_cols * input_row_idx) + 
                                   input_channel_start;
         
@@ -550,15 +595,15 @@ inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
         const size_t actual_stride = std::min(static_cast<size_t>(in_ch_stride), 
                                              static_cast<size_t>(weight_cols - input_channel_start));
         
-        // Execute micro kernel: compute dot product for this block
-        vec_dot_q4w_tr_q8a_tr(actual_stride, 
-                             output_buffer.data(), 
-                             weight_ptr, 
-                             current_filter_scale, 
-                             current_filter_zp, 
-                             input_ptr, 
-                             input_scale, 
-                             input_zp);
+        // Execute micro kernel: compute dot product for this block using the templated function
+        VecDotFunc(actual_stride, 
+                  output_buffer.data(), 
+                  weight_ptr, 
+                  current_filter_scale, 
+                  current_filter_zp, 
+                  input_ptr, 
+                  input_scale, 
+                  input_zp);
         
         // Initialize destination buffer on first stride
         if (input_channel_start == 0) {
@@ -584,6 +629,84 @@ inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
   (void)filter_per_channel_zp;
 }
 
+/**
+ * @brief FullyConnected layer with TRIX W4A8 quantization (4-bit weights, 8-bit activations)
+ * 
+ * This function implements a fully connected layer with TRIX quantization where:
+ * - Weights are quantized to 4-bit per channel
+ * - Activations are quantized to 8-bit
+ * - Uses micro-kernel approach processing 32 output channels at a time
+ * - Uses the original vec_dot_q4w_tr_q8a_tr function
+ * 
+ * @param params FullyConnected parameters (currently unused)
+ * @param input_shape Shape of input tensor
+ * @param input_data Input tensor data (float32, will be quantized to uint8)
+ * @param filter_shape Shape of filter/weights tensor
+ * @param filter_data Filter data (4-bit quantized)
+ * @param bias_shape Shape of bias tensor
+ * @param bias_data Bias data (int32)
+ * @param output_shape Shape of output tensor
+ * @param output_data Output tensor data (currently unused - output written to float buffer)
+ * @param in_ch_stride Input channel stride for processing
+ * @param input_scale Scale factor for input quantization
+ * @param input_zp Zero point for input quantization
+ * @param offset Offset array for weight data access
+ * @param filter_per_channel_scales Per-channel scale factors for weights
+ * @param filter_per_channel_zp Per-channel zero points for weights
+ */
+inline void FullyConnectedTRIXW4A8(FullyConnectedParams &params,
+                                   const Shape &input_shape, const uint8_t *input_data,
+                                   const Shape &filter_shape, const uint8_t *filter_data,
+                                   const Shape &bias_shape, const int32_t *bias_data,
+                                   const Shape &output_shape, uint8_t *output_data, 
+                                   int32_t in_ch_stride,
+                                   float input_scale,
+                                   int32_t input_zp, const std::vector<int32_t> &offset,
+                                   const float *filter_per_channel_scales,
+                                   const int32_t *filter_per_channel_zp)
+{
+  // Use the template implementation with the original vec_dot_q4w_tr_q8a_tr function
+  FullyConnectedTRIXImpl<vec_dot_q4w_tr_q8a_tr, quantize_q8a_tr_reference, 32, uint8_t>(params, input_shape, input_data, filter_shape, 
+                                                   filter_data, bias_shape, bias_data, output_shape, 
+                                                   output_data, in_ch_stride, input_scale, input_zp, 
+                                                   offset, filter_per_channel_scales, filter_per_channel_zp);
+}
+
+inline void FullyConnectedTRIXW8A8(FullyConnectedParams &params,
+                                   const Shape &input_shape, const uint8_t *input_data,
+                                   const Shape &filter_shape, const uint8_t *filter_data,
+                                   const Shape &bias_shape, const int32_t *bias_data,
+                                   const Shape &output_shape, uint8_t *output_data, 
+                                   int32_t in_ch_stride,
+                                   float input_scale,
+                                   int32_t input_zp, const std::vector<int32_t> &offset,
+                                   const float *filter_per_channel_scales,
+                                   const int32_t *filter_per_channel_zp)
+{
+  // Use the template implementation with the original vec_dot_q4w_tr_q8a_tr function
+  FullyConnectedTRIXImpl<vec_dot_q8w_tr_q8a_tr, quantize_q8a_tr_reference, 32, uint8_t>(params, input_shape, input_data, filter_shape, 
+                                                   filter_data, bias_shape, bias_data, output_shape, 
+                                                   output_data, in_ch_stride, input_scale, input_zp, 
+                                                   offset, filter_per_channel_scales, filter_per_channel_zp);
+}
+
+inline void FullyConnectedTRIXW8A16(FullyConnectedParams &params,
+                                   const Shape &input_shape, const uint8_t *input_data,
+                                   const Shape &filter_shape, const uint8_t *filter_data,
+                                   const Shape &bias_shape, const int32_t *bias_data,
+                                   const Shape &output_shape, uint8_t *output_data, 
+                                   int32_t in_ch_stride,
+                                   float input_scale,
+                                   int32_t input_zp, const std::vector<int32_t> &offset,
+                                   const float *filter_per_channel_scales,
+                                   const int32_t *filter_per_channel_zp)
+{
+  // Use the template implementation with the original vec_dot_q4w_tr_q8a_tr function
+  FullyConnectedTRIXImpl<vec_dot_q8w_tr_q16a_tr, quantize_q8a_tr_reference, 16, int16_t>(params, input_shape, input_data, filter_shape, 
+                                                   filter_data, bias_shape, bias_data, output_shape, 
+                                                   output_data, in_ch_stride, input_scale, input_zp, 
+                                                   offset, filter_per_channel_scales, filter_per_channel_zp);
+}
 
 inline void FullyConnectedSparseWeightRandom(
   const FullyConnectedParams &params, [[maybe_unused]] const Shape &input_shape,
