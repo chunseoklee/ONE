@@ -276,6 +276,22 @@ void quantize_q8a_tr_reference(const float *x, uint8_t *input_quantized, float i
     }
 }
 
+void quantize_q16a_tr_reference(const float *x, uint8_t *input_quantized, float input_scale, int32_t input_zp, int64_t k) {
+    (void)input_zp;
+    
+    // Calculate inverse scale to avoid division in the loop
+    const float inverse_scale = (input_scale != 0.0f) ? (1.0f / input_scale) : 0.0f;
+    int16_t *input_quantized_q16 = (int16_t*)input_quantized;
+     // Quantize each element: quantized_value = round(float_value / scale) 
+    for (int64_t i = 0; i < k; i++) {
+        const float scaled_value = x[i] * inverse_scale;
+        const int rounded_value = static_cast<int>(std::round(scaled_value));
+        
+        // Clamp to int16_t range [0, int16 max]
+        input_quantized_q16[i] = static_cast<int16_t>(std::max(0, std::min(INT16_MAX, rounded_value)));
+    }
+}
+
 #if defined(__ARM_NEON)
 // this intrisic is provided on ARMv8-A(aarch64)
 inline static int32_t vaddvq_s32(int32x4_t v) {
@@ -702,7 +718,7 @@ inline void FullyConnectedTRIXW8A16(FullyConnectedParams &params,
                                    const int32_t *filter_per_channel_zp)
 {
   // Use the template implementation with the original vec_dot_q4w_tr_q8a_tr function
-  FullyConnectedTRIXImpl<vec_dot_q8w_tr_q16a_tr, quantize_q8a_tr_reference, 16, int16_t>(params, input_shape, input_data, filter_shape, 
+  FullyConnectedTRIXImpl<vec_dot_q8w_tr_q16a_tr, quantize_q16a_tr_reference, 16, int16_t>(params, input_shape, input_data, filter_shape, 
                                                    filter_data, bias_shape, bias_data, output_shape, 
                                                    output_data, in_ch_stride, input_scale, input_zp, 
                                                    offset, filter_per_channel_scales, filter_per_channel_zp);
