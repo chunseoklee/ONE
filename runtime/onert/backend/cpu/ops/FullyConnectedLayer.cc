@@ -233,8 +233,23 @@ void FullyConnectedLayer::fullyConnectediWeightShare()
       break;
       
     case OperandType::QUANT_TRIX_W8A16:
-      // 8-bit weights, 16-bit activations (not yet implemented)
-      throw std::runtime_error{"FullyConnected: TRIX W8A16 quantization not yet implemented"};
+      // 8-bit weights, 16-bit activations
+      nnfw::cker::FullyConnectedTRIXW8A16(op_params, 
+                                          getShape(_input), 
+                                          getBuffer<uint8_t>(_input),
+                                          getShape(_weights), 
+                                          weight_data_ptr,
+                                          getShape(_bias), 
+                                          _bias ? getBuffer<int32_t>(_bias) : nullptr,
+                                          getShape(_output), 
+                                          getBuffer<uint8_t>(_output), 
+                                          trix_quant.in_ch_stride, 
+                                          trix_quant.input_scale, 
+                                          trix_quant.input_zp, 
+                                          trix_quant.offset,
+                                          filter_per_channel_scales, 
+                                          filter_per_channel_zp);
+      break;
       
     default:
       throw std::runtime_error{"FullyConnected: Unsupported TRIX weight type: " + 
