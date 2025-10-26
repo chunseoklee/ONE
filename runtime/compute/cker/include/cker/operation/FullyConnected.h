@@ -610,8 +610,97 @@ void vec_dot_q8w_tr_q8a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, con
 
 void vec_dot_q8w_tr_q16a_tr(int n, float *s /*output*/, const uint8_t *w_ptr, const float *w_scales, const uint8_t *w_zerops, const uint8_t *i_ptr, float i_scale, uint32_t i_zerop)
 {
-  // To suppress build warnings  
-  vec_dot_q4w_tr_q8a_tr(n, s, w_ptr, w_scales, w_zerops, i_ptr, i_scale, i_zerop);
+    (void)i_zerop;
+    assert(n % 16 == 0);
+
+    // number of channels
+    const int nc = 16;
+
+#if defined(__ARM_NEON)
+    // input(vy) setting
+    float input_scale = i_scale;
+    const int16_t *y = i_ptr;
+    // weight(vx) setting
+    const uint8_t *x = w_ptr; // n 8bit quantize values
+    int nb = n / 16;
+
+    int16_t * cur_input;
+    uint8_t * cur_weight;
+
+    int32x4_t sum32[nc];
+    for (int j = 0; j < nc; ++ j) sum32[j] = vdupq_n_s32(0);
+
+    for (int i = 0; i < nb; ++ i) {
+        cur_input = (int16_t *)(y + 16 * i); // input update for next block
+
+        // load inputs
+        const int16x8_t input_l = vld1q_s16(cur_input);
+        const int16x8_t input_h = vld1q_s16(cur_input + 8);
+
+        const int16x4_t input_ll = vget_low_s16(input_l);
+        const int16x4_t input_lh = vget_high_s16(input_l);
+        const int16x4_t input_hl = vget_low_s16(input_h);
+        const int16x4_t input_hh = vget_high_s16(input_h);
+
+        for (int j = 0; j < nc; ++ j){  // j is channel index
+            // load weights
+            const uint8x16_t weight = vld1q_u8(x + i * (nc * 16) + j * 16);
+            const int16x8_t weight_l = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(weight)));
+            const int16x8_t weight_h = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(weight)));
+
+            // subtract zp
+            const int16x8_t weight_zp = vdupq_n_s16(w_zerops[j]);
+            const int16x8_t weight_ls = vsubq_s16(weight_l, weight_zp);
+            const int16x8_t weight_hs = vsubq_s16(weight_h, weight_zp);
+
+            // suml[j] += weight*input
+            const int16x4_t weight_ll = vget_low_s16(weight_ls);
+            const int16x4_t weight_lh = vget_high_s16(weight_ls);
+            const int16x4_t weight_hl = vget_low_s16(weight_hs);
+            const int16x4_t weight_hh = vget_high_s16(weight_hs);
+
+            sum32[j] = vmlal_s16(vmlal_s16(sum32[j], weight_ll, input_ll), weight_lh, input_lh);
+            sum32[j] = vmlal_s16(vmlal_s16(sum32[j], weight_hl, input_hl), weight_hh, input_hh);
+        }
+    }
+
+    for (int j = 0; j < nc; ++ j){
+        // s[j] = (vgetq_lane_s32(sum32[j], 0) + vgetq_lane_s32(sum32[j], 1) + vgetq_lane_s32(sum32[j], 2) + vgetq_lane_s32(sum32[j], 3)) * qp[j].scale * input_scale;
+        s[j] = vaddvq_s32(sum32[j]) * w_scales[j] * input_scale;
+    }
+
+#else
+    // Reference implementation
+
+    // input(vy) setting
+    float input_scale = i_scale;
+    const int16_t *y = (const int16_t *)i_ptr;
+    // weight(vx) setting
+    const uint8_t *x = w_ptr; // n 8bit quantize values
+  
+    int nb = n / 16;
+    int64_t sum[16] = {0,};
+
+    int16_t * cur_input;
+    uint8_t * cur_weight;
+
+    for (int i = 0; i < nb; ++ i) {
+        cur_input = (int16_t *)(y + 16 * i); // input update for next block
+
+        for (int j = 0; j < nc; ++ j){  // j is channel index
+            cur_weight = (uint8_t *)(x + i * (nc * 16) + j * 16);
+
+            for (int k = 0; k < 16; ++ k) {  // dot product for 16 inputs and 16 weights
+                sum[j] += (cur_weight[k] - w_zerops[j]) * cur_input[k]; 
+             }
+        }
+    }
+
+    for (int j = 0; j < nc; ++ j){
+        s[j] = sum[j] * w_scales[j] * input_scale;
+    }
+#endif
+
 }
 
 /**
