@@ -807,9 +807,9 @@ inline void FullyConnectedTRIXImpl(FullyConnectedParams &params,
         const uint8_t *weight_ptr = filter_data + offset[offset_index];
         const uint8_t *current_filter_zp = filter_zerop.data() + output_channel_start;
         const float *current_filter_scale = filter_per_channel_scales + output_channel_start;
-        const uint8_t *input_ptr = reinterpret_cast<const uint8_t*>(input_quantized.data()) + 
+        const uint8_t *input_ptr = reinterpret_cast<const uint8_t*>(input_quantized.data() + 
                                   (weight_cols * input_row_idx) + 
-                                  input_channel_start;
+                                  input_channel_start);
         
         // Calculate actual stride (handle edge case)
         const size_t actual_stride = std::min(static_cast<size_t>(in_ch_stride), 
