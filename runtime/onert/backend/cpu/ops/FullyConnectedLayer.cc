@@ -23,9 +23,55 @@
 #include <cker/TensorUtils.h>
 #include <misc/polymorphic_downcast.h>
 #include <fstream>
+#include <unordered_map>
+#include <mutex>
 
 namespace onert::backend::cpu::ops
 {
+
+// Registry for external weight data pointers
+static std::unordered_map<std::string, const uint8_t*> g_weight_registry;
+static std::mutex g_registry_mutex;
+
+/**
+ * Register weight data pointer for a specific TVN file
+ * 
+ * @param file_path Path to the TVN file (used as key)
+ * @param weight_data_ptr Pointer to the weight data
+ */
+void registerWeightData(const std::string& file_path, const uint8_t* weight_data_ptr)
+{
+  std::lock_guard<std::mutex> lock(g_registry_mutex);
+  g_weight_registry[file_path] = weight_data_ptr;
+}
+
+/**
+ * Unregister weight data pointer for a specific TVN file
+ * 
+ * @param file_path Path to the TVN file (used as key)
+ */
+void unregisterWeightData(const std::string& file_path)
+{
+  std::lock_guard<std::mutex> lock(g_registry_mutex);
+  g_weight_registry.erase(file_path);
+}
+
+/**
+ * Get registered weight data pointer for a specific TVN file
+ * 
+ * @param file_path Path to the TVN file (used as key)
+ * @return Pointer to weight data, or nullptr if not found
+ */
+const uint8_t* getRegisteredWeightData(const std::string& file_path)
+{
+  std::lock_guard<std::mutex> lock(g_registry_mutex);
+  auto it = g_weight_registry.find(file_path);
+  if (it != g_weight_registry.end())
+  {
+    return it->second;
+  }
+  return nullptr;
+}
 
 FullyConnectedLayer::FullyConnectedLayer()
   : _input(nullptr), _weights(nullptr), _bias(nullptr), _output(nullptr),
@@ -329,29 +375,40 @@ void FullyConnectedLayer::fullyConnectediWeightShare()
   const auto *filter_per_channel_scales = _weights->data_scales().data();
   const auto *filter_per_channel_zp = _weights->data_zero_points().data();
    
-  // TODO: FIXME - This is a temporary workaround for weight loading
-  // In production, weight data should be provided through the proper tensor interface
-  // rather than hardcoded file loading
+  // Check if weight data is registered externally
+  const uint8_t* weight_data_ptr = nullptr;
+  const std::string& tvm_file_path = "model.tvn";  // Default path for backward compatibility
   
-  constexpr const char* TVN_FILE_PATH = "./model.tvn";
-  long TVN_WEIGHT_OFFSET = get_tvn_weight_offset(TVN_FILE_PATH);
+  // Try to get externally registered weight data first
+  weight_data_ptr = getRegisteredWeightData(tvm_file_path);
+  
+  // If no external data is registered, fall back to file-based approach
+  std::vector<uint8_t> file_data;
+  if (weight_data_ptr == nullptr)
+  {
+    // TODO: FIXME - This is a temporary workaround for weight loading
+    // In production, weight data should be provided through the proper tensor interface
+    // rather than hardcoded file loading
+    
+    constexpr const char* TVN_FILE_PATH = "./model.tvn";
+    long TVN_WEIGHT_OFFSET = get_tvn_weight_offset(TVN_FILE_PATH);
 
-  // Load weight data from TVN file (temporary implementation)
-  std::ifstream weight_file(TVN_FILE_PATH, std::ios::binary | std::ios::ate);
-  if (!weight_file.is_open()) {
-    throw std::runtime_error{"FullyConnected: Failed to open TVN weight file: " + std::string(TVN_FILE_PATH)};
+    // Load weight data from TVN file (temporary implementation)
+    std::ifstream weight_file(TVN_FILE_PATH, std::ios::binary | std::ios::ate);
+    if (!weight_file.is_open()) {
+      throw std::runtime_error{"FullyConnected: Failed to open TVN weight file: " + std::string(TVN_FILE_PATH)};
+    }
+    
+    const std::streamsize file_size = weight_file.tellg();
+    weight_file.seekg(0, std::ios::beg);
+    
+    file_data.resize(file_size);
+    weight_file.read(reinterpret_cast<char*>(file_data.data()), file_size);
+    weight_file.close();
+    
+    weight_data_ptr = &file_data[TVN_WEIGHT_OFFSET];
   }
   
-  const std::streamsize file_size = weight_file.tellg();
-  weight_file.seekg(0, std::ios::beg);
-  
-  std::vector<uint8_t> file_data(file_size);
-  weight_file.read(reinterpret_cast<char*>(file_data.data()), file_size);
-  weight_file.close();
-  
-  const uint8_t* weight_data_ptr = &file_data[TVN_WEIGHT_OFFSET];
-  ///////////////////////////////////////////////////////////////////////////////
-
   // Dispatch to appropriate TRIX kernel based on weight quantization type
   switch (_weights->data_type()) {
     case OperandType::QUANT_TRIX_W4A8:

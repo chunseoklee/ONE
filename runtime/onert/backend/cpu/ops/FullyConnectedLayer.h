@@ -31,6 +31,10 @@ class FCTempArena;
 namespace onert::backend::cpu::ops
 {
 
+// Registry functions for external weight data management
+void registerWeightData(const std::string& file_path, const uint8_t* weight_data_ptr);
+void unregisterWeightData(const std::string& file_path);
+
 class FullyConnectedLayer : public ::onert::exec::IFunction
 {
 public:
