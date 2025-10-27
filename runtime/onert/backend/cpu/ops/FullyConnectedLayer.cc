@@ -147,6 +147,165 @@ void FullyConnectedLayer::fullyConnectedHybrid()
 #endif
 }
 
+// FIXME: remove this after real w_ptr is provided
+#include <stdint.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#define NPUBIN_META_SIZE 4096
+
+/**
+ * Calculate extended metadata size from magiccode
+ * 
+ * @param magiccode The magic code from the TVN file
+ * @return Extended metadata size in bytes
+ */
+inline uint64_t npubin_meta_extended_size(uint64_t magiccode) {
+    // C++ implementation of: ((magiccode >> 8) & 0xFFULL) * NPUBIN_META_SIZE
+    uint64_t num_extended = (magiccode >> 8) & 0xFF;
+    return num_extended * NPUBIN_META_SIZE;
+}
+
+/**
+ * Parse minimal metadata from TVN file
+ * 
+ * @param file_path Path to the TVN file
+ * @param magiccode Output parameter for magiccode
+ * @param program_size Output parameter for program size
+ * @param extended_metasize Output parameter for extended metadata size
+ * @return true if successful, false otherwise
+ */
+bool parse_minimal_metadata(const char* file_path, 
+                           uint64_t* magiccode, 
+                           uint64_t* program_size, 
+                           uint32_t* extended_metasize) {
+    std::ifstream file(file_path, std::ios::binary);
+    if (!file.is_open()) {
+        fprintf(stderr, "Error: Failed to open file %s\n", file_path);
+        return false;
+    }
+    
+    // Read base metadata (first 4096 bytes)
+    char metadata[NPUBIN_META_SIZE];
+    file.read(metadata, NPUBIN_META_SIZE);
+    
+    if (file.gcount() < NPUBIN_META_SIZE) {
+        fprintf(stderr, "Error: File too small, expected at least %d bytes\n", NPUBIN_META_SIZE);
+        file.close();
+        return false;
+    }
+    
+    // Parse magiccode (offset 0, 8 bytes, little-endian)
+    *magiccode = static_cast<uint64_t>(static_cast<uint8_t>(metadata[0])) |
+                 (static_cast<uint64_t>(static_cast<uint8_t>(metadata[1])) << 8) |
+                 (static_cast<uint64_t>(static_cast<uint8_t>(metadata[2])) << 16) |
+                 (static_cast<uint64_t>(static_cast<uint8_t>(metadata[3])) << 24) |
+                 (static_cast<uint64_t>(static_cast<uint8_t>(metadata[4])) << 32) |
+                 (static_cast<uint64_t>(static_cast<uint8_t>(metadata[5])) << 40) |
+                 (static_cast<uint64_t>(static_cast<uint8_t>(metadata[6])) << 48) |
+                 (static_cast<uint64_t>(static_cast<uint8_t>(metadata[7])) << 56);
+    
+    // Parse extended_metasize (offset 188, 4 bytes, little-endian)
+    *extended_metasize = static_cast<uint32_t>(static_cast<uint8_t>(metadata[188])) |
+                         (static_cast<uint32_t>(static_cast<uint8_t>(metadata[189])) << 8) |
+                         (static_cast<uint32_t>(static_cast<uint8_t>(metadata[190])) << 16) |
+                         (static_cast<uint32_t>(static_cast<uint8_t>(metadata[191])) << 24);
+    
+    // Parse program_size (offset 224, 8 bytes, little-endian)
+    *program_size = static_cast<uint64_t>(static_cast<uint8_t>(metadata[224])) |
+                    (static_cast<uint64_t>(static_cast<uint8_t>(metadata[225])) << 8) |
+                    (static_cast<uint64_t>(static_cast<uint8_t>(metadata[226])) << 16) |
+                    (static_cast<uint64_t>(static_cast<uint8_t>(metadata[227])) << 24) |
+                    (static_cast<uint64_t>(static_cast<uint8_t>(metadata[228])) << 32) |
+                    (static_cast<uint64_t>(static_cast<uint8_t>(metadata[229])) << 40) |
+                    (static_cast<uint64_t>(static_cast<uint8_t>(metadata[230])) << 48) |
+                    (static_cast<uint64_t>(static_cast<uint8_t>(metadata[231])) << 56);
+    
+    file.close();
+    return true;
+}
+
+/**
+ * Calculate weight offset from TVN file
+ * 
+ * @param tvn_path Path to the TVN file
+ * @return Weight offset in bytes, or -1 if failed
+ */
+int64_t get_tvn_weight_offset(const char* tvn_path) {
+    uint64_t magiccode, program_size;
+    uint32_t extended_metasize;
+    
+    // Parse metadata
+    if (!parse_minimal_metadata(tvn_path, &magiccode, &program_size, &extended_metasize)) {
+        return -1;
+    }
+    
+    // Calculate extended metadata size
+    // Backward compatibility: extended_metasize가 0이면 legacy 방식 사용
+    uint64_t extended_size;
+    if (extended_metasize == 0) {
+        extended_size = npubin_meta_extended_size(magiccode);
+    } else {
+        extended_size = extended_metasize;
+    }
+    
+    // Calculate weight offset
+    // NPUBIN_META_SIZE + extended_size + program_size
+    int64_t weight_offset = static_cast<int64_t>(NPUBIN_META_SIZE) + 
+                           static_cast<int64_t>(extended_size) + 
+                           static_cast<int64_t>(program_size);
+    
+    printf("File: %s\n", tvn_path);
+    printf("Magiccode: 0x%016lx\n", magiccode);
+    printf("Program size: %ld bytes\n", program_size);
+    printf("Extended metadata size: %ld bytes\n", extended_size);
+    printf("Weight offset: %ld bytes (0x%lx)\n", weight_offset, weight_offset);
+    
+    return weight_offset;
+}
+
+/**
+ * Get complete weight information from TVN file
+ * 
+ * @param tvn_path Path to the TVN file
+ * @param weight_offset Output parameter for weight offset
+ * @param weight_size Output parameter for weight size
+ * @return true if successful, false otherwise
+ */
+bool get_tvn_weight_info(const char* tvn_path, int64_t* weight_offset, int64_t* weight_size) {
+    uint64_t magiccode, program_size;
+    uint32_t extended_metasize;
+    
+    // Parse metadata
+    if (!parse_minimal_metadata(tvn_path, &magiccode, &program_size, &extended_metasize)) {
+        return false;
+    }
+    
+    // Calculate extended metadata size
+    uint64_t extended_size;
+    if (extended_metasize == 0) {
+        extended_size = npubin_meta_extended_size(magiccode);
+    } else {
+        extended_size = extended_metasize;
+    }
+    
+    // Calculate weight offset
+    *weight_offset = static_cast<int64_t>(NPUBIN_META_SIZE) + 
+                     static_cast<int64_t>(extended_size) + 
+                     static_cast<int64_t>(program_size);
+    
+    // Get file size
+    struct stat stat_buffer;
+    if (stat(tvn_path, &stat_buffer) != 0) {
+        return false;
+    }
+    
+    // Calculate weight size (file size - weight offset)
+    *weight_size = stat_buffer.st_size - *weight_offset;
+    
+    return true;
+}
+
+
 /**
  * @brief Execute fully connected layer with TRIX weight sharing quantization
  * 
@@ -173,9 +332,10 @@ void FullyConnectedLayer::fullyConnectediWeightShare()
   // TODO: FIXME - This is a temporary workaround for weight loading
   // In production, weight data should be provided through the proper tensor interface
   // rather than hardcoded file loading
-  constexpr long TVN_WEIGHT_OFFSET = 39712;
-  constexpr const char* TVN_FILE_PATH = "/mnt/ssd/dev/ONE/Product/x86_64-linux.debug/out/bin/model.tvn";
   
+  constexpr const char* TVN_FILE_PATH = "./model.tvn";
+  long TVN_WEIGHT_OFFSET = get_tvn_weight_offset(TVN_FILE_PATH);
+
   // Load weight data from TVN file (temporary implementation)
   std::ifstream weight_file(TVN_FILE_PATH, std::ios::binary | std::ios::ate);
   if (!weight_file.is_open()) {
