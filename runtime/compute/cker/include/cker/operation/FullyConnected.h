@@ -287,8 +287,8 @@ void quantize_q16a_tr_reference(const float *x, uint8_t *input_quantized, float 
         const float scaled_value = x[i] * inverse_scale;
         const int rounded_value = static_cast<int>(std::round(scaled_value));
         
-        // Clamp to int16_t range [0, int16 max]
-        input_quantized_q16[i] = static_cast<int16_t>(std::max(0, std::min(INT16_MAX, rounded_value)));
+        // Clamp to int16_t range [int16 min, int16 max]
+        input_quantized_q16[i] = static_cast<int16_t>(std::max(INT16_MIN, std::min(INT16_MAX, rounded_value)));
     }
 }
 
