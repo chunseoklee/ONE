@@ -724,7 +724,7 @@ using VecDotFunction = void(*)(int n, float *s, const uint8_t *w_ptr, const floa
 using QuantizeFunction = void(*)(const float *x, uint8_t *input_quantized, float input_scale, int32_t input_zp, int64_t k); 
 
 /**
- * @brief Template implementation for FullyConnected layer with TRIX W4A8 quantization
+ * @brief Template implementation for FullyConnected layer with TRIX quantization
  * 
  * This is a templated implementation that allows different vector dot product functions
  * to be injected, avoiding code duplication while maintaining the same functionality.
@@ -765,7 +765,7 @@ inline void FullyConnectedTRIXImpl(FullyConnectedParams &params,
   const int output_channels = filter_shape.Dims(0);
   const int weight_cols = filter_shape.Dims(1);
 
-  // Step 1: Quantize F32 input to Q8 using input scale and zero point
+  // Step 1: Quantize F32 input to Q8/Q16 using input scale and zero point
   std::vector<InputQType> input_quantized(total_input_size);
   QuantFunc(reinterpret_cast<const float*>(input_data), 
             reinterpret_cast<uint8_t*>(input_quantized.data()), 
