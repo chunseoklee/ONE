@@ -26,51 +26,37 @@
 #include <unordered_map>
 #include <mutex>
 
+#include "../../../core/include/GlobalWeightRegistry.h"
+
 namespace onert::backend::cpu::ops
 {
 
-// Registry for external weight data pointers
-static std::unordered_map<std::string, const uint8_t*> g_weight_registry;
-static std::mutex g_registry_mutex;
+// External C functions for global weight registry access
+extern "C" {
+  const uint8_t* getInternalWeightData(const char* key);
+  int registerGlobalWeightData(const char* key, const uint8_t* weight_data_ptr);
+  int unregisterGlobalWeightData(const char* key);
+}
 
-/**
- * Register weight data pointer for a specific TVN file
- * 
- * @param file_path Path to the TVN file (used as key)
- * @param weight_data_ptr Pointer to the weight data
- */
+// Legacy functions for backward compatibility
 void registerWeightData(const std::string& file_path, const uint8_t* weight_data_ptr)
 {
-  std::lock_guard<std::mutex> lock(g_registry_mutex);
-  g_weight_registry[file_path] = weight_data_ptr;
+  // This function is deprecated. Use nnfw_register_global_weight_data instead.
+  // For backward compatibility, we still register the data using internal function.
+  registerGlobalWeightData(file_path.c_str(), weight_data_ptr);
 }
 
-/**
- * Unregister weight data pointer for a specific TVN file
- * 
- * @param file_path Path to the TVN file (used as key)
- */
 void unregisterWeightData(const std::string& file_path)
 {
-  std::lock_guard<std::mutex> lock(g_registry_mutex);
-  g_weight_registry.erase(file_path);
+  // This function is deprecated. Use nnfw_unregister_global_weight_data instead.
+  // For backward compatibility, we still unregister using internal function.
+  unregisterGlobalWeightData(file_path.c_str());
 }
 
-/**
- * Get registered weight data pointer for a specific TVN file
- * 
- * @param file_path Path to the TVN file (used as key)
- * @return Pointer to weight data, or nullptr if not found
- */
 const uint8_t* getRegisteredWeightData(const std::string& file_path)
 {
-  std::lock_guard<std::mutex> lock(g_registry_mutex);
-  auto it = g_weight_registry.find(file_path);
-  if (it != g_weight_registry.end())
-  {
-    return it->second;
-  }
-  return nullptr;
+  // Use the internal global weight registry access function
+  return getInternalWeightData(file_path.c_str());
 }
 
 FullyConnectedLayer::FullyConnectedLayer()
@@ -390,7 +376,7 @@ void FullyConnectedLayer::fullyConnectediWeightShare()
     // In production, weight data should be provided through the proper tensor interface
     // rather than hardcoded file loading
     
-    constexpr const char* TVN_FILE_PATH = "./model.tvn";
+    constexpr const char* TVN_FILE_PATH = "/mnt/ssd/dev/ONE/Product/x86_64-linux.debug/out/bin/model.tvn";
     long TVN_WEIGHT_OFFSET = get_tvn_weight_offset(TVN_FILE_PATH);
 
     // Load weight data from TVN file (temporary implementation)

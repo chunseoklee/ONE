@@ -787,6 +787,42 @@ NNFW_STATUS nnfw_set_execute_config(nnfw_session *session, const NNFW_RUN_CONFIG
  */
 NNFW_STATUS nnfw_reset_execute_config(nnfw_session *session);
 
+/**
+ * @brief     Register global weight data with a key
+ *
+ * This function allows users to register weight data pointers with string keys globally.
+ * The registered weight data can be accessed by any component including backend layers.
+ * This is useful for providing external weight data without embedding it in the model file.
+ *
+ * @param[in] key     The string key to identify the weight data
+ * @param[in] data    Pointer to the weight data (uint8_t array)
+ * @param[in] size    Size of the weight data in bytes
+ * @return    @c NNFW_STATUS_NO_ERROR if successful, otherwise return @c NNFW_STATUS_ERROR
+ */
+NNFW_STATUS nnfw_register_global_weight_data(const char *key, const uint8_t *data, size_t size);
+
+/**
+ * @brief     Get global registered weight data by key
+ *
+ * This function retrieves weight data that was previously registered using nnfw_register_global_weight_data.
+ *
+ * @param[in]  key     The string key of the weight data to retrieve
+ * @param[out] data    Pointer to store the retrieved weight data pointer
+ * @param[out] size    Pointer to store the size of the retrieved weight data
+ * @return     @c NNFW_STATUS_NO_ERROR if successful, otherwise return @c NNFW_STATUS_ERROR
+ */
+NNFW_STATUS nnfw_get_global_weight_data(const char *key, const uint8_t **data, size_t *size);
+
+/**
+ * @brief     Unregister global weight data by key
+ *
+ * This function removes weight data from the global registry using the provided key.
+ *
+ * @param[in] key     The string key of the weight data to remove
+ * @return    @c NNFW_STATUS_NO_ERROR if successful, otherwise return @c NNFW_STATUS_ERROR
+ */
+NNFW_STATUS nnfw_unregister_global_weight_data(const char *key);
+
 #ifdef __cplusplus
 }
 #endif

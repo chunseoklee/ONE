@@ -420,3 +420,48 @@ NNFW_STATUS nnfw_reset_execute_config(nnfw_session *session)
   NNFW_RETURN_ERROR_IF_NULL(session);
   return session->reset_execute_config();
 }
+
+// Global weight registry API
+
+// External functions from GlobalWeightRegistry.cc
+extern "C" int registerGlobalWeightData(const char* key, const uint8_t* weight_data_ptr);
+extern "C" int unregisterGlobalWeightData(const char* key);
+extern "C" const uint8_t* getGlobalWeightData(const char* key);
+
+NNFW_STATUS nnfw_register_global_weight_data(const char *key, const uint8_t *data, size_t size)
+{
+  NNFW_RETURN_ERROR_IF_NULL(key);
+  NNFW_RETURN_ERROR_IF_NULL(data);
+  
+  // Suppress unused parameter warning
+  (void)size;
+  
+  int result = registerGlobalWeightData(key, data);
+  return (result == 0) ? NNFW_STATUS_NO_ERROR : NNFW_STATUS_ERROR;
+}
+
+NNFW_STATUS nnfw_get_global_weight_data(const char *key, const uint8_t **data, size_t *size)
+{
+  NNFW_RETURN_ERROR_IF_NULL(key);
+  NNFW_RETURN_ERROR_IF_NULL(data);
+  NNFW_RETURN_ERROR_IF_NULL(size);
+  
+  const uint8_t* weight_data = getGlobalWeightData(key);
+  if (weight_data == nullptr)
+  {
+    return NNFW_STATUS_ERROR;
+  }
+  
+  *data = weight_data;
+  *size = 0; // Global registry doesn't store size, user needs to manage it
+  
+  return NNFW_STATUS_NO_ERROR;
+}
+
+NNFW_STATUS nnfw_unregister_global_weight_data(const char *key)
+{
+  NNFW_RETURN_ERROR_IF_NULL(key);
+  
+  int result = unregisterGlobalWeightData(key);
+  return (result == 0) ? NNFW_STATUS_NO_ERROR : NNFW_STATUS_ERROR;
+}
